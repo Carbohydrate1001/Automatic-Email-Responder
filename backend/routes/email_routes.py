@@ -3,8 +3,11 @@ Email API routes.
 Blueprint prefix: /api
 """
 
+import json
+import time
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request, session
+
 from models.database import get_db_connection
 from services.graph_service import GraphService, EmailSendError
 
@@ -38,6 +41,7 @@ def fetch_emails():
 
     graph = GraphService(token)
     top = int(request.json.get("top", 10)) if request.is_json else 10
+    fetch_started_at = time.perf_counter()
 
     print(f"[FETCH] 开始拉取邮件，top={top}", flush=True)
     try:
@@ -47,48 +51,92 @@ def fetch_emails():
         return jsonify({"error": f"Graph API 调用失败: {str(e)}"}), 500
 
     print(f"[FETCH] Graph 返回 {len(emails)} 封邮件", flush=True)
-    if emails:
-        print(f"[FETCH] 第一封邮件主题: {emails[0].get('subject')}, 发件人: {emails[0].get('from', {}).get('emailAddress', {}).get('address')}", flush=True)
 
     processed = []
     skipped = []
+    failed = []
+    status_counts = {
+        "auto_sent": 0,
+        "pending_review": 0,
+        "ignored_no_reply": 0,
+        "send_failed": 0,
+    }
+    total_latency_ms = 0.0
 
     for msg in emails:
-        message_id = msg["id"]
+        started = time.perf_counter()
+        message_id = msg.get("id", "")
 
-        # Skip already-processed emails
-        with get_db_connection() as conn:
-            existing = conn.execute(
-                "SELECT id FROM emails WHERE message_id = ?", (message_id,)
-            ).fetchone()
+        try:
+            with get_db_connection() as conn:
+                existing = conn.execute(
+                    "SELECT id FROM emails WHERE message_id = ?", (message_id,)
+                ).fetchone()
 
-        if existing:
-            skipped.append(message_id)
-            continue
+            if existing:
+                skipped.append(message_id)
+                continue
 
-        subject = msg.get("subject", "(No Subject)")
-        sender = msg.get("from", {}).get("emailAddress", {}).get("address", "unknown")
-        received_at = msg.get("receivedDateTime", "")
-        body = msg.get("body", {}).get("content", msg.get("bodyPreview", ""))
+            subject = msg.get("subject", "(No Subject)")
+            sender = msg.get("from", {}).get("emailAddress", {}).get("address", "unknown")
+            received_at = msg.get("receivedDateTime", "")
+            body = msg.get("body", {}).get("content", msg.get("bodyPreview", ""))
 
-        classification = classification_svc.classify_email(subject, body)
-        result = reply_svc.process_email(
-            message_id=message_id,
-            subject=subject,
-            sender=sender,
-            received_at=received_at,
-            body=body,
-            classification=classification,
-            graph_service=graph,
-            operator=operator,
-        )
-        processed.append(result)
+            classification = classification_svc.classify_email(subject, body)
+            result = reply_svc.process_email(
+                message_id=message_id,
+                subject=subject,
+                sender=sender,
+                received_at=received_at,
+                body=body,
+                classification=classification,
+                graph_service=graph,
+                operator=operator,
+            )
+            processed.append(result)
+            status = result.get("status", "pending_review")
+            if status in status_counts:
+                status_counts[status] += 1
+
+            item_latency_ms = round((time.perf_counter() - started) * 1000, 2)
+            total_latency_ms += item_latency_ms
+            print(
+                "[PIPELINE] " + json.dumps({
+                    "message_id": message_id,
+                    "status": status,
+                    "category": result.get("category"),
+                    "confidence": result.get("confidence"),
+                    "latency_ms": item_latency_ms,
+                }, ensure_ascii=False),
+                flush=True,
+            )
+        except Exception as e:
+            failed.append({"message_id": message_id, "error": str(e)})
+            print(
+                "[PIPELINE] " + json.dumps({
+                    "message_id": message_id,
+                    "status": "processing_failed",
+                    "error": str(e),
+                }, ensure_ascii=False),
+                flush=True,
+            )
+
+    total_elapsed_ms = round((time.perf_counter() - fetch_started_at) * 1000, 2)
+    avg_latency_ms = round(total_latency_ms / len(processed), 2) if processed else 0.0
 
     return jsonify({
         "processed": len(processed),
         "skipped": len(skipped),
+        "failed": len(failed),
+        "status_breakdown": status_counts,
+        "pipeline_metrics": {
+            "total_elapsed_ms": total_elapsed_ms,
+            "avg_per_email_ms": avg_latency_ms,
+        },
+        "errors": failed[:20],
         "emails": processed,
     })
+
 
 
 # ---------------------------------------------------------------------------
@@ -341,8 +389,11 @@ def get_stats():
     pending_review = status_map.get("pending_review", 0)
     rejected = status_map.get("rejected", 0)
     send_failed = status_map.get("send_failed", 0)
+    ignored_no_reply = status_map.get("ignored_no_reply", 0)
 
     auto_rate = round((auto_sent + approved) / total * 100, 1) if total > 0 else 0.0
+    non_business_rate = round(ignored_no_reply / total * 100, 1) if total > 0 else 0.0
+    send_failure_rate = round(send_failed / total * 100, 1) if total > 0 else 0.0
 
     return jsonify({
         "total": total,
@@ -351,9 +402,12 @@ def get_stats():
         "pending_review": pending_review,
         "rejected": rejected,
         "send_failed": send_failed,
+        "ignored_no_reply": ignored_no_reply,
         "auto_rate": auto_rate,
-
+        "non_business_rate": non_business_rate,
+        "send_failure_rate": send_failure_rate,
         "avg_confidence": round(avg_confidence * 100, 1),
+
         "categories": [dict(r) for r in category_rows],
         "daily": [dict(r) for r in daily_rows],
     })

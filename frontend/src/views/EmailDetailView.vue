@@ -66,7 +66,7 @@
                   {{ CATEGORY_LABELS[email.category] || email.category }}
                 </el-tag>
                 <p class="text-xs text-slate-400 mt-2">
-                  {{ email.status === 'send_failed' ? '✕ 发送失败，可编辑后重试' : (email.confidence >= 0.75 ? '✓ 高置信度，已自动处理' : '⚠ 低置信度，需人工审核') }}
+                  {{ email.status === 'ignored_no_reply' ? '✓ 非业务邮件，已自动忽略无需回复' : (email.status === 'send_failed' ? '✕ 发送失败，可编辑后重试' : (email.confidence >= 0.75 ? '✓ 高置信度，已自动处理' : '⚠ 低置信度，需人工审核')) }}
 
                 </p>
               </div>
@@ -86,7 +86,7 @@
               v-model="editableReply"
               type="textarea"
               :autosize="{ minRows: 6, maxRows: 14 }"
-              :disabled="email.status === 'auto_sent' || email.status === 'approved' || email.status === 'rejected'"
+              :disabled="email.status === 'auto_sent' || email.status === 'approved' || email.status === 'rejected' || email.status === 'ignored_no_reply'"
               placeholder="AI 生成的回复草稿..."
               class="mb-4 flex-1"
             />

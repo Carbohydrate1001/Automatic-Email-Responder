@@ -184,6 +184,8 @@ const statCards = computed(() => {
     { label: '自动处理', value: s ? (s.auto_sent + s.approved) : '-', icon: CheckCircle, bg: 'bg-green-50', color: 'text-green-600' },
     { label: '待人工审核', value: s?.pending_review ?? '-', icon: AlertTriangle, bg: 'bg-yellow-50', color: 'text-yellow-600' },
     { label: '发送失败', value: s?.send_failed ?? '-', icon: Clock, bg: 'bg-red-50', color: 'text-red-500' },
+    { label: '已忽略', value: s?.ignored_no_reply ?? '-', icon: Clock, bg: 'bg-slate-100', color: 'text-slate-600' },
+
 
   ]
 })

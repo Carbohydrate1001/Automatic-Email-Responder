@@ -64,24 +64,32 @@ class ReplyService:
         category = classification["category"]
         confidence = classification["confidence"]
         reasoning = classification.get("reasoning", "")
+        is_business_related = classification.get("is_business_related", category != "non_business")
 
-        reply_text = self.generate_reply(subject, body, category, reasoning)
-
-        status = "auto_sent" if confidence >= self.threshold else "pending_review"
         sent_at = None
         retry_count = 0
         last_error = None
 
-        if status == "auto_sent" and graph_service is not None:
-            try:
-                send_result = graph_service.send_reply(message_id, reply_text)
-                retry_count = send_result.get("attempts", 1)
-                graph_service.mark_as_read(message_id)
-                sent_at = datetime.now(timezone.utc).isoformat()
-            except EmailSendError as e:
-                status = "send_failed"
-                retry_count = e.attempts
-                last_error = e.last_error
+        if category == "non_business" or not is_business_related:
+            reply_text = ""
+            status = "ignored_no_reply"
+        else:
+            reply_text = self.generate_reply(subject, body, category, reasoning)
+            auto_send_eligible = confidence >= self.threshold and confidence >= 0.8
+            status = "auto_sent" if auto_send_eligible else "pending_review"
+
+            if status == "auto_sent" and graph_service is not None:
+
+                try:
+                    send_result = graph_service.send_reply(message_id, reply_text)
+                    retry_count = send_result.get("attempts", 1)
+                    graph_service.mark_as_read(message_id)
+                    sent_at = datetime.now(timezone.utc).isoformat()
+                except EmailSendError as e:
+                    status = "send_failed"
+                    retry_count = e.attempts
+                    last_error = e.last_error
+
 
 
         with get_db_connection() as conn:

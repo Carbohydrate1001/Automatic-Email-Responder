@@ -22,7 +22,9 @@ const tagType = computed(() => {
     approved: '',
     rejected: 'danger',
     send_failed: 'danger',
+    ignored_no_reply: 'info',
   }
+
 
   return map[props.status] || 'info'
 })
@@ -34,7 +36,9 @@ const tagColor = computed(() => {
     approved: '#dbeafe',
     rejected: '#fee2e2',
     send_failed: '#fee2e2',
+    ignored_no_reply: '#e2e8f0',
   }
+
 
   return map[props.status] || '#f1f5f9'
 })
