@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #2563EB;
+    --primary-dark: #1D4ED8;
+    --navy: #1E3A5F;
+    --bg-light: #F1F5F9;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --purple: #6366F1;
+  }
+
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+    @apply bg-slate-100 text-slate-800 antialiased;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-100 p-6;
+  }
+
+  .stat-card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-100 p-5 flex items-center gap-4 hover:shadow-md transition-shadow duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 cursor-pointer;
+  }
+
+  .tag-category {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+}
+
+/* Element Plus overrides */
+.el-table .el-table__header th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  font-weight: 600;
+}
+
+.el-pagination {
+  justify-content: center;
+  margin-top: 1rem;
+}
