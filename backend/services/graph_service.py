@@ -3,11 +3,21 @@ Microsoft Graph API service.
 Handles reading and sending emails via Graph API using the access token stored in session.
 """
 
+import time
 import requests
 from config import Config
 
 
 NO_PROXY = {"http": None, "https": None}
+
+
+class EmailSendError(Exception):
+    """Raised when sending an email reply fails after retries."""
+
+    def __init__(self, message: str, attempts: int, last_error: str):
+        super().__init__(message)
+        self.attempts = attempts
+        self.last_error = last_error
 
 
 class GraphService:
@@ -73,16 +83,35 @@ class GraphService:
         """Mark an email as read."""
         self._patch(f"/me/messages/{message_id}", {"isRead": True})
 
-    def send_reply(self, message_id: str, reply_text: str):
-        """Send a reply to an email using the Graph API sendReply endpoint."""
-        self._post(
-            f"/me/messages/{message_id}/reply",
-            {
-                "message": {},
-                "comment": reply_text,
-            },
+    def send_reply(self, message_id: str, reply_text: str, max_attempts: int | None = None) -> dict:
+        """Send a reply to an email using retry policy. Returns {'attempts': int} on success."""
+        attempts = max(1, max_attempts or Config.SEND_RETRY_MAX_ATTEMPTS)
+        delay_seconds = max(0.0, Config.SEND_RETRY_DELAY_SECONDS)
+        last_error = ""
+
+        for attempt in range(1, attempts + 1):
+            try:
+                self._post(
+                    f"/me/messages/{message_id}/reply",
+                    {
+                        "message": {},
+                        "comment": reply_text,
+                    },
+                )
+                return {"attempts": attempt}
+            except Exception as e:
+                last_error = str(e)
+                print(f"[GRAPH] 发送失败，第 {attempt}/{attempts} 次: {last_error}", flush=True)
+                if attempt < attempts and delay_seconds > 0:
+                    time.sleep(delay_seconds)
+
+        raise EmailSendError(
+            f"发送回复失败，已重试 {attempts} 次",
+            attempts=attempts,
+            last_error=last_error or "unknown error",
         )
 
     def get_me(self) -> dict:
         """Get the current authenticated user's profile."""
         return self._get("/me")
+

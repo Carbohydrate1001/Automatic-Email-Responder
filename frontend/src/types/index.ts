@@ -8,7 +8,8 @@ export interface EmailRecord {
   category: string
   confidence: number
   reasoning: string
-  status: 'auto_sent' | 'pending_review' | 'approved' | 'rejected'
+  status: 'auto_sent' | 'pending_review' | 'approved' | 'rejected' | 'send_failed'
+
   reply_text: string
   sent_at: string | null
   created_at: string
@@ -27,7 +28,9 @@ export interface StatsResponse {
   approved: number
   pending_review: number
   rejected: number
+  send_failed: number
   auto_rate: number
+
   avg_confidence: number
   categories: { category: string; cnt: number }[]
   daily: { day: string; handled: number; pending: number }[]
@@ -62,4 +65,6 @@ export const STATUS_LABELS: Record<string, string> = {
   pending_review: '待人工审核',
   approved: '已审核发送',
   rejected: '已拒绝',
+  send_failed: '发送失败（可重试）',
 }
+

@@ -8,7 +8,17 @@ import contextlib
 from config import Config
 
 
+def _ensure_column(conn, table_name: str, column_name: str, column_def: str):
+    columns = {
+        row["name"]
+        for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
+
+
 def init_db():
+
     """Create all tables if they don't exist (idempotent)."""
     with get_db_connection() as conn:
         conn.executescript("""
@@ -23,6 +33,8 @@ def init_db():
                 confidence  REAL,
                 reasoning   TEXT,
                 status      TEXT DEFAULT 'pending_review',
+                retry_count INTEGER DEFAULT 0,
+                last_error  TEXT,
                 created_at  TEXT DEFAULT (datetime('now'))
             );
 
@@ -42,7 +54,10 @@ def init_db():
                 created_at  TEXT DEFAULT (datetime('now'))
             );
         """)
+        _ensure_column(conn, "emails", "retry_count", "INTEGER DEFAULT 0")
+        _ensure_column(conn, "emails", "last_error", "TEXT")
         conn.commit()
+
 
 
 @contextlib.contextmanager

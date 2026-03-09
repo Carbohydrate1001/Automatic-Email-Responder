@@ -66,7 +66,8 @@
                   {{ CATEGORY_LABELS[email.category] || email.category }}
                 </el-tag>
                 <p class="text-xs text-slate-400 mt-2">
-                  {{ email.confidence >= 0.75 ? '✓ 高置信度，已自动处理' : '⚠ 低置信度，需人工审核' }}
+                  {{ email.status === 'send_failed' ? '✕ 发送失败，可编辑后重试' : (email.confidence >= 0.75 ? '✓ 高置信度，已自动处理' : '⚠ 低置信度，需人工审核') }}
+
                 </p>
               </div>
             </div>
@@ -91,7 +92,8 @@
             />
 
             <!-- Action buttons -->
-            <div v-if="email.status === 'pending_review'" class="flex gap-3">
+            <div v-if="email.status === 'pending_review' || email.status === 'send_failed'" class="flex gap-3">
+
               <button
                 class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors cursor-pointer disabled:opacity-60"
                 :disabled="approving"
@@ -157,9 +159,13 @@ function sanitizeBody(body: string) {
 async function handleApprove() {
   if (!email.value) return
   approving.value = true
-  await emailStore.approveEmail(email.value.id, editableReply.value)
-  approving.value = false
+  try {
+    await emailStore.approveEmail(email.value.id, editableReply.value)
+  } finally {
+    approving.value = false
+  }
 }
+
 
 async function handleReject() {
   if (!email.value) return

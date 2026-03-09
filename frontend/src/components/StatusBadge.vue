@@ -21,7 +21,9 @@ const tagType = computed(() => {
     pending_review: 'warning',
     approved: '',
     rejected: 'danger',
+    send_failed: 'danger',
   }
+
   return map[props.status] || 'info'
 })
 
@@ -31,7 +33,9 @@ const tagColor = computed(() => {
     pending_review: '#fef9c3',
     approved: '#dbeafe',
     rejected: '#fee2e2',
+    send_failed: '#fee2e2',
   }
+
   return map[props.status] || '#f1f5f9'
 })
 

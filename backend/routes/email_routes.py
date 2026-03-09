@@ -6,7 +6,8 @@ Blueprint prefix: /api
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request, session
 from models.database import get_db_connection
-from services.graph_service import GraphService
+from services.graph_service import GraphService, EmailSendError
+
 from services.classification_service import ClassificationService
 from services.reply_service import ReplyService
 
@@ -130,8 +131,9 @@ def list_emails():
         rows = conn.execute(
             f"""
             SELECT e.id, e.message_id, e.subject, e.sender, e.received_at,
-                   e.category, e.confidence, e.status, e.created_at,
+                   e.category, e.confidence, e.status, e.retry_count, e.last_error, e.created_at,
                    r.reply_text
+
             FROM emails e
             LEFT JOIN replies r ON r.email_id = e.id
             {where_sql}
@@ -193,8 +195,9 @@ def approve_email(email_id):
         if not row:
             return jsonify({"error": "Email not found"}), 404
 
-        if row["status"] not in ("pending_review",):
+        if row["status"] not in ("pending_review", "send_failed"):
             return jsonify({"error": f"Cannot approve email with status '{row['status']}'"}), 400
+
 
     # Allow overriding reply text
     reply_text = row["reply_text"]
@@ -202,25 +205,64 @@ def approve_email(email_id):
         reply_text = request.json["reply_text"]
 
     graph = GraphService(token)
-    graph.send_reply(row["message_id"], reply_text)
-    graph.mark_as_read(row["message_id"])
-    sent_at = datetime.now(timezone.utc).isoformat()
 
-    with get_db_connection() as conn:
-        conn.execute(
-            "UPDATE emails SET status = 'approved' WHERE id = ?", (email_id,)
-        )
-        conn.execute(
-            "UPDATE replies SET reply_text = ?, sent_at = ? WHERE email_id = ?",
-            (reply_text, sent_at, email_id),
-        )
-        conn.execute(
-            "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'approved', ?)",
-            (email_id, operator),
-        )
-        conn.commit()
+    try:
+        send_result = graph.send_reply(row["message_id"], reply_text)
+        graph.mark_as_read(row["message_id"])
+        sent_at = datetime.now(timezone.utc).isoformat()
 
-    return jsonify({"success": True, "status": "approved", "sent_at": sent_at})
+        with get_db_connection() as conn:
+            conn.execute(
+                """
+                UPDATE emails
+                SET status = 'approved',
+                    retry_count = COALESCE(retry_count, 0) + ?,
+                    last_error = NULL
+                WHERE id = ?
+                """,
+                (send_result.get("attempts", 1), email_id),
+            )
+            conn.execute(
+                "UPDATE replies SET reply_text = ?, sent_at = ? WHERE email_id = ?",
+                (reply_text, sent_at, email_id),
+            )
+            conn.execute(
+                "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'approved', ?)",
+                (email_id, operator),
+            )
+            conn.commit()
+
+        return jsonify({
+            "success": True,
+            "status": "approved",
+            "sent_at": sent_at,
+            "retry_attempts": send_result.get("attempts", 1),
+        })
+    except EmailSendError as e:
+        with get_db_connection() as conn:
+            conn.execute(
+                """
+                UPDATE emails
+                SET status = 'send_failed',
+                    retry_count = COALESCE(retry_count, 0) + ?,
+                    last_error = ?
+                WHERE id = ?
+                """,
+                (e.attempts, e.last_error, email_id),
+            )
+            conn.execute(
+                "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'send_failed', ?)",
+                (email_id, operator),
+            )
+            conn.commit()
+
+        return jsonify({
+            "error": "邮件发送失败，系统已自动重试",
+            "status": "send_failed",
+            "retry_attempts": e.attempts,
+            "detail": e.last_error,
+        }), 502
+
 
 
 # ---------------------------------------------------------------------------
@@ -240,8 +282,9 @@ def reject_email(email_id):
         if not row:
             return jsonify({"error": "Email not found"}), 404
 
-        if row["status"] not in ("pending_review",):
+        if row["status"] not in ("pending_review", "send_failed"):
             return jsonify({"error": f"Cannot reject email with status '{row['status']}'"}), 400
+
 
         conn.execute(
             "UPDATE emails SET status = 'rejected' WHERE id = ?", (email_id,)
@@ -297,6 +340,7 @@ def get_stats():
     approved = status_map.get("approved", 0)
     pending_review = status_map.get("pending_review", 0)
     rejected = status_map.get("rejected", 0)
+    send_failed = status_map.get("send_failed", 0)
 
     auto_rate = round((auto_sent + approved) / total * 100, 1) if total > 0 else 0.0
 
@@ -306,7 +350,9 @@ def get_stats():
         "approved": approved,
         "pending_review": pending_review,
         "rejected": rejected,
+        "send_failed": send_failed,
         "auto_rate": auto_rate,
+
         "avg_confidence": round(avg_confidence * 100, 1),
         "categories": [dict(r) for r in category_rows],
         "daily": [dict(r) for r in daily_rows],

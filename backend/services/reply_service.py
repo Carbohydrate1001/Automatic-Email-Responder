@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from openai import OpenAI
 from config import Config
 from models.database import get_db_connection
+from services.graph_service import EmailSendError
+
 
 REPLY_SYSTEM_PROMPT = """You are a professional customer service representative for a logistics and trade company.
 Write a clear, polite, and helpful reply email to the customer based on the email content and its identified category.
@@ -67,27 +69,39 @@ class ReplyService:
 
         status = "auto_sent" if confidence >= self.threshold else "pending_review"
         sent_at = None
+        retry_count = 0
+        last_error = None
 
         if status == "auto_sent" and graph_service is not None:
-            graph_service.send_reply(message_id, reply_text)
-            graph_service.mark_as_read(message_id)
-            sent_at = datetime.now(timezone.utc).isoformat()
+            try:
+                send_result = graph_service.send_reply(message_id, reply_text)
+                retry_count = send_result.get("attempts", 1)
+                graph_service.mark_as_read(message_id)
+                sent_at = datetime.now(timezone.utc).isoformat()
+            except EmailSendError as e:
+                status = "send_failed"
+                retry_count = e.attempts
+                last_error = e.last_error
+
 
         with get_db_connection() as conn:
             # Upsert email record
             conn.execute(
                 """
                 INSERT INTO emails (message_id, subject, sender, received_at, body,
-                                    category, confidence, reasoning, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    category, confidence, reasoning, status, retry_count, last_error)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(message_id) DO UPDATE SET
                     category=excluded.category,
                     confidence=excluded.confidence,
                     reasoning=excluded.reasoning,
-                    status=excluded.status
+                    status=excluded.status,
+                    retry_count=excluded.retry_count,
+                    last_error=excluded.last_error
                 """,
                 (message_id, subject, sender, received_at, body,
-                 category, confidence, reasoning, status),
+                 category, confidence, reasoning, status, retry_count, last_error),
+
             )
             email_row = conn.execute(
                 "SELECT id FROM emails WHERE message_id = ?", (message_id,)
@@ -116,5 +130,8 @@ class ReplyService:
             "category": category,
             "confidence": confidence,
             "status": status,
+            "retry_count": retry_count,
+            "last_error": last_error,
             "reply_text": reply_text,
+
         }

@@ -47,3 +47,8 @@ class Config:
 
     # Classification confidence threshold – emails below this go to manual review
     CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
+
+    # Email send retry policy
+    SEND_RETRY_MAX_ATTEMPTS = int(os.getenv("SEND_RETRY_MAX_ATTEMPTS", "3"))
+    SEND_RETRY_DELAY_SECONDS = float(os.getenv("SEND_RETRY_DELAY_SECONDS", "1.0"))
+
