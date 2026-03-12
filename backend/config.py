@@ -41,9 +41,11 @@ class Config:
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # Database
-    DATABASE_PATH = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "email_system.db"
-    )
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATABASE_PATH = os.path.join(BASE_DIR, "email_system.db")
+
+    # Company product catalog (JSON-based lightweight datastore)
+    COMPANY_PRODUCTS_PATH = os.path.join(BASE_DIR, "data", "company_products.json")
 
     # Classification confidence threshold – emails below this go to manual review
     CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))

@@ -9,6 +9,8 @@ from config import Config
 from models.database import init_db
 from routes.auth_routes import auth_bp
 from routes.email_routes import email_bp
+from routes.company_routes import company_bp
+
 
 
 def create_app():
@@ -30,6 +32,8 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(email_bp, url_prefix="/api")
+    app.register_blueprint(company_bp, url_prefix="/api")
+
 
     @app.route("/")
     def index():
