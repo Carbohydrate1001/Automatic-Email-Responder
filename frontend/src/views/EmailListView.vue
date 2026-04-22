@@ -38,7 +38,7 @@
             placeholder="搜索发件人或主题..."
             clearable
             class="w-64"
-            @change="applySearch"
+            @input="onSearchInput"
             @clear="applySearch"
           >
             <template #prefix><Search class="w-4 h-4 text-slate-400" /></template>
@@ -176,6 +176,15 @@ const searchText = ref('')
 const statusFilter = ref('')
 const categoryFilter = ref('')
 const currentPage = ref(1)
+
+// Debounced search to avoid firing on every keystroke
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+function onSearchInput() {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => {
+    applySearch()
+  }, 350)
+}
 
 const statCards = computed(() => {
   const s = emailStore.stats

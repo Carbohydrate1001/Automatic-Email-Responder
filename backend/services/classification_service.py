@@ -4,6 +4,8 @@ Uses OpenAI GPT-4o-mini to classify email intent into business categories.
 """
 
 import json
+import os
+from pathlib import Path
 from openai import OpenAI
 from config import Config
 
@@ -38,40 +40,103 @@ NON_BUSINESS_HINTS = [
     "系统通知", "运营通知", "营销", "活动", "订阅", "退订", "备份", "云盘", "验证码", "安全提醒", "会议邀请", "照片", "视频",
 ]
 
-BUSINESS_GATE_PROMPT = """You are a gatekeeper for a logistics/trade customer-service mailbox.
-Determine whether the incoming email is a real business-service request relevant to logistics/trade operations.
+BUSINESS_GATE_PROMPT = """You are a strict gatekeeper for a logistics/trade customer-service mailbox.
+Your ONLY job: determine if this email is a direct service request from a customer about logistics, shipping, orders, billing, or pricing.
+
+ALWAYS return is_business_related=false for:
+- Microsoft/Google/cloud service notifications (OneDrive, Teams, 365 subscription, etc.)
+- Newsletter, promotional, or marketing emails
+- Password reset, security alerts, verification codes
+- Meeting invitations or calendar events
+- Internal company announcements or HR notices
+- Subscription renewal notices for non-logistics services
+
+ONLY return is_business_related=true if the email is clearly from a customer asking for help with:
+- Logistics/shipping services, pricing, quotes
+- Order status, tracking, cancellations, returns
+- Invoices, billing, or payment confirmation
 
 Respond ONLY with valid JSON:
 {
   "is_business_related": <true|false>,
   "confidence": <float between 0.0 and 1.0>,
   "reasoning": "<brief one-sentence explanation>"
-}
+}"""
 
-Set is_business_related=false for newsletters, account/system notifications, promotions, cloud storage tips, security reminders, and other non-service content."""
 
-CATEGORY_PROMPT = """You are an expert email classifier for a logistics and trade company's customer service system.
-Classify the incoming email into exactly one category:
-- pricing_inquiry: pricing, quotation, rate questions
-- order_cancellation: cancellation or refund requests
-- order_tracking: order status / logistics tracking
-- shipping_time: shipping duration / ETA
-- shipping_exception: delay, damage, abnormal shipping events
-- billing_invoice: billing, invoice, payment issues
-- non_business: newsletters, marketing, account/system notifications, internal announcements, or messages unrelated to the company's logistics/trade business
+def _load_few_shot_examples() -> list[dict]:
+    """Load few-shot classification examples from JSON file. Returns empty list on failure."""
+    path = Path(os.path.dirname(__file__)).parent / "data" / "few_shot_examples.json"
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("examples", [])
+    except Exception:
+        return []
 
-Important rules:
-1) If the email is not a customer service business request to this company, choose non_business.
-2) Do NOT map generic technology/account/storage/security messages to logistics categories.
-3) Only use high confidence (>0.85) when evidence is explicit.
+
+def _build_category_prompt() -> str:
+    """Dynamically build the category classification prompt with few-shot examples."""
+    examples = _load_few_shot_examples()
+
+    prompt = """You are an expert email classifier for a logistics and trade company's customer service system.
+
+Classify the incoming email into EXACTLY ONE of these categories:
+
+CATEGORY DEFINITIONS:
+- pricing_inquiry: Customer asks for price quotes, rates, or cost estimates for shipping services or products. Key signals: "how much", "quote", "price", "rate", "报价", "运费多少", "费用".
+- order_cancellation: Customer explicitly requests to cancel an order AND/OR requests a refund. Key signal: cancel/refund INTENT, NOT just reporting damage without refund request.
+- order_tracking: Customer asks about the CURRENT STATUS or LOCATION of a specific existing shipment/order. Key signals: "where is", "status of order", "tracking update", "到哪了", "物流状态".
+- shipping_time: Customer asks about transit DURATION or ETA in general (not tracking a specific in-transit order). Key signals: "how long", "how many days", "ETA", "几天到", "运输时间".
+- shipping_exception: Customer REPORTS a problem with an existing shipment that has already occurred: delay, damage, lost, stuck at customs. Key signal: a problem has ALREADY occurred, often with a specific order/tracking number.
+- billing_invoice: Customer asks about invoices, payment confirmation, billing errors, or financial documentation. Key signals: invoice, payment sent, billing issue, "发票", "付款确认".
+- non_business: System notifications, newsletters, marketing, internal announcements, account alerts, or anything NOT a customer service request about logistics/trade.
+
+DISAMBIGUATION RULES (apply in order when ambiguous):
+1. "运费多少" / "how much to ship" / asks about PRICE → pricing_inquiry (asking about cost, not time)
+2. "几天到" / "how long does it take" / asks about DURATION without a specific in-transit order → shipping_time
+3. "我的货到哪了" / "where is my order [ID]" / asks about CURRENT STATUS of a specific shipment → order_tracking
+4. "货延误/损坏/丢失" / "shipment delayed, damaged, or lost" → shipping_exception (problem has ALREADY occurred)
+5. "退款" / "cancel order" WITHOUT a damage-but-keep-order context → order_cancellation
+6. "货损但要重发不退款" / reports damage but wants replacement, NOT refund → shipping_exception
+7. "付款确认" / "invoice wrong" / "billing issue" → billing_invoice
+
+"""
+
+    if examples:
+        prompt += "EXAMPLES (use these to learn the precise boundary between similar categories):\n\n"
+        by_category: dict[str, list] = {}
+        for ex in examples:
+            cat = ex.get("category", "")
+            by_category.setdefault(cat, []).append(ex)
+
+        for cat, exs in by_category.items():
+            prompt += f"--- {cat} ---\n"
+            for ex in exs:
+                label = ex.get("label", "POSITIVE")
+                subject = ex.get("subject", "")
+                body_preview = ex.get("body", "")[:150]
+                note = ex.get("note", "")
+                prompt += f"[{label}] Subject: {subject}\nBody: {body_preview}\nWhy: {note}\n\n"
+
+    prompt += """IMPORTANT RULES:
+1. If the email is NOT a customer service request to this logistics/trade company → non_business.
+2. Do NOT assign logistics categories to generic tech/account/storage/security notifications.
+3. Use confidence > 0.85 ONLY when the intent signal is explicit and unambiguous.
+4. For ambiguous cases, apply the DISAMBIGUATION RULES above before deciding.
 
 Respond ONLY with valid JSON:
 {
-  "category": "<one of the category names above>",
+  "category": "<one of the 7 category names>",
   "confidence": <float between 0.0 and 1.0>,
-  "reasoning": "<brief one-sentence explanation>"
+  "reasoning": "<one sentence citing the specific signal that determined the category>"
 }"""
 
+    return prompt
+
+
+# Pre-build at module load time to avoid re-reading file on every request
+CATEGORY_PROMPT = _build_category_prompt()
 
 
 class ClassificationService:
@@ -133,7 +198,8 @@ class ClassificationService:
             }
 
         gate = self._gate_business_relevance(subject, body)
-        if not gate["is_business_related"] and gate["business_confidence"] >= 0.6:
+        # Raised threshold from 0.6 to 0.7 to reduce false non-business classifications
+        if not gate["is_business_related"] and gate["business_confidence"] >= 0.7:
             category = "non_business"
             return {
                 "category": category,
@@ -179,5 +245,3 @@ class ClassificationService:
             "is_business_related": category != "non_business",
             "business_confidence": gate["business_confidence"],
         }
-
-

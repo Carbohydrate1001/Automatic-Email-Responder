@@ -84,9 +84,9 @@ class GraphService:
         self._patch(f"/me/messages/{message_id}", {"isRead": True})
 
     def send_reply(self, message_id: str, reply_text: str, max_attempts: int | None = None) -> dict:
-        """Send a reply to an email using retry policy. Returns {'attempts': int} on success."""
+        """Send a reply to an email using exponential backoff retry. Returns {'attempts': int} on success."""
         attempts = max(1, max_attempts or Config.SEND_RETRY_MAX_ATTEMPTS)
-        delay_seconds = max(0.0, Config.SEND_RETRY_DELAY_SECONDS)
+        base_delay = max(0.0, Config.SEND_RETRY_DELAY_SECONDS)
         last_error = ""
 
         for attempt in range(1, attempts + 1):
@@ -102,8 +102,11 @@ class GraphService:
             except Exception as e:
                 last_error = str(e)
                 print(f"[GRAPH] 发送失败，第 {attempt}/{attempts} 次: {last_error}", flush=True)
-                if attempt < attempts and delay_seconds > 0:
-                    time.sleep(delay_seconds)
+                if attempt < attempts:
+                    # Exponential backoff: 1s, 2s, 4s, ..., capped at 30s
+                    delay = min(base_delay * (2 ** (attempt - 1)), 30.0)
+                    if delay > 0:
+                        time.sleep(delay)
 
         raise EmailSendError(
             f"发送回复失败，已重试 {attempts} 次",

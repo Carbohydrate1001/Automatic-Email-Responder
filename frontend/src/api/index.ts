@@ -44,9 +44,29 @@ export const emailApi = {
   approveEmail: (id: number, replyText?: string) =>
     api.post(`/api/emails/${id}/approve`, replyText ? { reply_text: replyText } : {}),
 
-  rejectEmail: (id: number) => api.post(`/api/emails/${id}/reject`),
+  rejectEmail: (id: number, correctedCategory?: string) =>
+    api.post(`/api/emails/${id}/reject`, correctedCategory ? { corrected_category: correctedCategory } : {}),
 
   getStats: () => api.get('/api/stats'),
+
+  getFeedbackStats: () => api.get('/api/feedback/stats'),
+}
+
+export interface ProductRecord {
+  product_name: string
+  unit_price: number
+  currency: string
+  min_order_quantity: number
+  delivery_lead_time_days: number
+}
+
+export const companyApi = {
+  listProducts: () => api.get('/api/company/products'),
+  addProduct: (data: ProductRecord) => api.post('/api/company/products', data),
+  upsertProduct: (name: string, data: Partial<ProductRecord>) =>
+    api.patch(`/api/company/products/${encodeURIComponent(name)}`, data),
+  deleteProduct: (name: string) =>
+    api.delete(`/api/company/products/${encodeURIComponent(name)}`),
 }
 
 export default api

@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
-import { Mail, LayoutDashboard, LogOut, Inbox } from 'lucide-vue-next'
+import { Mail, LayoutDashboard, LogOut, Inbox, Package } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
@@ -56,6 +56,7 @@ const router = useRouter()
 const navItems = [
   { path: '/emails', label: '邮件管理', icon: Inbox },
   { path: '/dashboard', label: '数据看板', icon: LayoutDashboard },
+  { path: '/products', label: '产品管理', icon: Package },
 ]
 
 function isActive(path: string) {

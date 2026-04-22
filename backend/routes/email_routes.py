@@ -4,6 +4,7 @@ Blueprint prefix: /api
 """
 
 import json
+import os
 import time
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request, session
@@ -40,7 +41,12 @@ def fetch_emails():
         return jsonify({"error": "Not authenticated"}), 401
 
     graph = GraphService(token)
-    top = int(request.json.get("top", 10)) if request.is_json else 10
+
+    # Enforce maximum fetch limit to prevent OpenAI rate limit overruns
+    MAX_FETCH_LIMIT = int(os.environ.get("MAX_FETCH_LIMIT", "20"))
+    raw_top = int(request.json.get("top", 10)) if request.is_json else 10
+    top = min(raw_top, MAX_FETCH_LIMIT)
+
     fetch_started_at = time.perf_counter()
 
     print(f"[FETCH] 开始拉取邮件，top={top}", flush=True)
@@ -136,7 +142,6 @@ def fetch_emails():
         "errors": failed[:20],
         "emails": processed,
     })
-
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +241,7 @@ def approve_email(email_id):
 
     with get_db_connection() as conn:
         row = conn.execute(
-            "SELECT e.*, r.reply_text FROM emails e LEFT JOIN replies r ON r.email_id = e.id WHERE e.id = ?",
+            "SELECT e.*, r.reply_text, r.id as reply_id FROM emails e LEFT JOIN replies r ON r.email_id = e.id WHERE e.id = ?",
             (email_id,),
         ).fetchone()
 
@@ -246,11 +251,14 @@ def approve_email(email_id):
         if row["status"] not in ("pending_review", "send_failed"):
             return jsonify({"error": f"Cannot approve email with status '{row['status']}'"}), 400
 
-
     # Allow overriding reply text
-    reply_text = row["reply_text"]
+    original_reply = row["reply_text"]
+    reply_text = original_reply
     if request.is_json and request.json.get("reply_text"):
         reply_text = request.json["reply_text"]
+
+    was_edited = bool(reply_text and reply_text != original_reply)
+    action_type = "approved_with_edit" if was_edited else "approved"
 
     graph = GraphService(token)
 
@@ -265,10 +273,11 @@ def approve_email(email_id):
                 UPDATE emails
                 SET status = 'approved',
                     retry_count = COALESCE(retry_count, 0) + ?,
-                    last_error = NULL
+                    last_error = NULL,
+                    feedback = ?
                 WHERE id = ?
                 """,
-                (send_result.get("attempts", 1), email_id),
+                (send_result.get("attempts", 1), "edited" if was_edited else "accepted", email_id),
             )
             conn.execute(
                 "UPDATE replies SET reply_text = ?, sent_at = ? WHERE email_id = ?",
@@ -278,6 +287,33 @@ def approve_email(email_id):
                 "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'approved', ?)",
                 (email_id, operator),
             )
+
+            # Write feedback record
+            conn.execute(
+                """INSERT INTO feedback_records
+                   (email_id, reply_id, action, original_reply_text, edited_reply_text, operator)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    email_id,
+                    row["reply_id"],
+                    action_type,
+                    original_reply if was_edited else None,
+                    reply_text if was_edited else None,
+                    operator,
+                ),
+            )
+
+            # Upsert customer contact record
+            conn.execute(
+                """INSERT INTO customers (email_address, display_name, contact_count, last_contact_at)
+                   VALUES (?, ?, 1, datetime('now'))
+                   ON CONFLICT(email_address) DO UPDATE SET
+                       contact_count = contact_count + 1,
+                       last_contact_at = datetime('now'),
+                       updated_at = datetime('now')""",
+                (row["sender"], row["sender"].split("@")[0] if row["sender"] else "unknown"),
+            )
+
             conn.commit()
 
         return jsonify({
@@ -312,7 +348,6 @@ def approve_email(email_id):
         }), 502
 
 
-
 # ---------------------------------------------------------------------------
 # POST /api/emails/<id>/reject  – Reject a pending email
 # ---------------------------------------------------------------------------
@@ -322,9 +357,13 @@ def reject_email(email_id):
     if not token:
         return jsonify({"error": "Not authenticated"}), 401
 
+    corrected_category = None
+    if request.is_json and request.json:
+        corrected_category = request.json.get("corrected_category")
+
     with get_db_connection() as conn:
         row = conn.execute(
-            "SELECT id, status FROM emails WHERE id = ?", (email_id,)
+            "SELECT id, status, category FROM emails WHERE id = ?", (email_id,)
         ).fetchone()
 
         if not row:
@@ -333,14 +372,31 @@ def reject_email(email_id):
         if row["status"] not in ("pending_review", "send_failed"):
             return jsonify({"error": f"Cannot reject email with status '{row['status']}'"}), 400
 
-
         conn.execute(
-            "UPDATE emails SET status = 'rejected' WHERE id = ?", (email_id,)
+            "UPDATE emails SET status = 'rejected', feedback = 'rejected' WHERE id = ?",
+            (email_id,),
         )
+
+        # If a corrected category is provided, store it as human_category
+        if corrected_category:
+            conn.execute(
+                "UPDATE emails SET human_category = ? WHERE id = ?",
+                (corrected_category, email_id),
+            )
+
         conn.execute(
             "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'rejected', ?)",
             (email_id, operator),
         )
+
+        # Write feedback record for future analysis
+        conn.execute(
+            """INSERT INTO feedback_records
+               (email_id, action, original_category, corrected_category, operator)
+               VALUES (?, 'rejected', ?, ?, ?)""",
+            (email_id, row["category"], corrected_category, operator),
+        )
+
         conn.commit()
 
     return jsonify({"success": True, "status": "rejected"})
@@ -370,7 +426,6 @@ def get_stats():
             "SELECT AVG(confidence) as avg FROM emails"
         ).fetchone()["avg"] or 0.0
 
-        # Last 7 days daily counts
         daily_rows = conn.execute(
             """
             SELECT date(created_at) as day,
@@ -410,4 +465,41 @@ def get_stats():
 
         "categories": [dict(r) for r in category_rows],
         "daily": [dict(r) for r in daily_rows],
+    })
+
+
+# ---------------------------------------------------------------------------
+# GET /api/feedback/stats  – Classification correction analysis
+# ---------------------------------------------------------------------------
+@email_bp.route("/feedback/stats", methods=["GET"])
+def feedback_stats():
+    token, _ = _require_auth()
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    with get_db_connection() as conn:
+        correction_rows = conn.execute(
+            """SELECT original_category, corrected_category, COUNT(*) as cnt
+               FROM feedback_records
+               WHERE action = 'rejected' AND corrected_category IS NOT NULL
+               GROUP BY original_category, corrected_category
+               ORDER BY cnt DESC""",
+        ).fetchall()
+
+        edit_rate_row = conn.execute(
+            """SELECT
+               CAST(COUNT(CASE WHEN action = 'approved_with_edit' THEN 1 END) AS FLOAT) * 100.0 /
+               NULLIF(COUNT(CASE WHEN action IN ('approved', 'approved_with_edit') THEN 1 END), 0)
+               as edit_rate
+               FROM feedback_records"""
+        ).fetchone()
+
+        total_feedback = conn.execute(
+            "SELECT COUNT(*) as cnt FROM feedback_records"
+        ).fetchone()["cnt"]
+
+    return jsonify({
+        "total_feedback_records": total_feedback,
+        "category_corrections": [dict(r) for r in correction_rows],
+        "reply_edit_rate": round(edit_rate_row["edit_rate"] or 0, 1),
     })

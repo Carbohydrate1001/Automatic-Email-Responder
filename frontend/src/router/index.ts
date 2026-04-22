@@ -24,6 +24,11 @@ const routes = [
     component: () => import('../views/DashboardView.vue'),
   },
   {
+    path: '/products',
+    name: 'Products',
+    component: () => import('../views/ProductsView.vue'),
+  },
+  {
     path: '/',
     redirect: '/emails',
   },

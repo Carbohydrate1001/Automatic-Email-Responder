@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "description": "Few-shot examples for email classification. Add POSITIVE examples to reinforce correct classification and NEGATIVE examples to clarify boundaries between similar categories.",
+  "examples": [
+    {
+      "category": "pricing_inquiry",
+      "label": "POSITIVE",
+      "subject": "Quotation Request - Sea Freight to Rotterdam",
+      "body": "Hi, we need a quote for shipping 3 x 20ft containers from Shenzhen to Rotterdam. Please include all surcharges and estimated total cost.",
+      "note": "明确询价，包含起止港和数量"
+    },
+    {
+      "category": "pricing_inquiry",
+      "label": "POSITIVE",
+      "subject": "请问运费报价",
+      "body": "你好，我们想寄一批货物从上海到迪拜，大约5吨，请问最低运费是多少？有什么优惠？",
+      "note": "中文询价，询问单价"
+    },
+    {
+      "category": "pricing_inquiry",
+      "label": "NEGATIVE",
+      "subject": "运费什么时候到账",
+      "body": "上次付的运费已经转给你们了，什么时候能确认收款？",
+      "note": "反例：说的是付款确认，应归 billing_invoice，不是询价"
+    },
+
+    {
+      "category": "order_cancellation",
+      "label": "POSITIVE",
+      "subject": "Cancel Order ORD882341",
+      "body": "Please cancel my order ORD882341. I no longer need the shipment. Please process refund to my account.",
+      "note": "明确取消+退款"
+    },
+    {
+      "category": "order_cancellation",
+      "label": "POSITIVE",
+      "subject": "申请退款",
+      "body": "您好，由于货物损坏严重无法使用，我们要求全额退款并取消后续订单，请告知退款流程。",
+      "note": "货损引发退款申请，核心意图是取消和退款"
+    },
+    {
+      "category": "order_cancellation",
+      "label": "NEGATIVE",
+      "subject": "货物损坏",
+      "body": "我们的货在运输途中被压坏了，包装破损，请帮我们处理，但不需要退款，重新发一批就可以。",
+      "note": "反例：货损但要求重发不退款，应归 shipping_exception"
+    },
+
+    {
+      "category": "order_tracking",
+      "label": "POSITIVE",
+      "subject": "Where is my order ORD556123?",
+      "body": "Hi, I placed an order last week (ORD556123) and haven't received any tracking update. Can you check the current status?",
+      "note": "查询具体订单当前状态"
+    },
+    {
+      "category": "order_tracking",
+      "label": "POSITIVE",
+      "subject": "物流单号查询",
+      "body": "请问我的货到哪了？快递单号是SF1234567890，已经三天了没动静。",
+      "note": "查物流动态，含单号"
+    },
+    {
+      "category": "order_tracking",
+      "label": "NEGATIVE",
+      "subject": "几天能到",
+      "body": "你好，我刚下单，请问从深圳到新加坡大概要几天？",
+      "note": "反例：问的是时长而非当前状态，应归 shipping_time"
+    },
+
+    {
+      "category": "shipping_time",
+      "label": "POSITIVE",
+      "subject": "ETA for Air Freight to Dubai",
+      "body": "We urgently need to know the estimated transit time for air freight from Guangzhou to Dubai. Our customer deadline is next Friday.",
+      "note": "询问预计时长/ETA，尚未下单"
+    },
+    {
+      "category": "shipping_time",
+      "label": "POSITIVE",
+      "subject": "海运到美国要多久",
+      "body": "请问从宁波港海运到洛杉矶港一般需要多少天？走快船还是普通船？",
+      "note": "询问运输天数，通用咨询"
+    },
+    {
+      "category": "shipping_time",
+      "label": "NEGATIVE",
+      "subject": "ETA update for ORD991",
+      "body": "My order ORD991 was supposed to arrive on Monday but tracking shows it's still in Singapore. What happened?",
+      "note": "反例：已有具体订单且出现延误异常，应归 shipping_exception"
+    },
+
+    {
+      "category": "shipping_exception",
+      "label": "POSITIVE",
+      "subject": "Shipment Delayed - ORD334",
+      "body": "Our shipment ORD334 was due to arrive 5 days ago but is still stuck at Hamburg customs. We have already incurred penalty charges from our buyer. Please advise immediately.",
+      "note": "延误+损失，异常已发生"
+    },
+    {
+      "category": "shipping_exception",
+      "label": "POSITIVE",
+      "subject": "货物损坏投诉",
+      "body": "收到货后发现外包装严重破损，里面的电子元件有明显撞击痕迹，拍照存证已发送。请安排赔偿或补发。",
+      "note": "货物损坏异常，要求处理"
+    },
+    {
+      "category": "shipping_exception",
+      "label": "NEGATIVE",
+      "subject": "快递查询",
+      "body": "请问单号SF999的快递现在到哪里了？",
+      "note": "反例：只是查询状态没有提及异常，应归 order_tracking"
+    },
+
+    {
+      "category": "billing_invoice",
+      "label": "POSITIVE",
+      "subject": "Invoice INV-2024-089 Issue",
+      "body": "The invoice you sent has the wrong company name. Our legal name is ABC Trading Co. Ltd, not ABC Trading. Please reissue the invoice with the correct information.",
+      "note": "发票信息错误要求重开"
+    },
+    {
+      "category": "billing_invoice",
+      "label": "POSITIVE",
+      "subject": "付款确认",
+      "body": "您好，我们已于今天下午通过T/T转账支付了订单ORD221的尾款，金额USD 8,500，请确认收款并安排发货。",
+      "note": "付款确认，账单类"
+    },
+    {
+      "category": "billing_invoice",
+      "label": "NEGATIVE",
+      "subject": "退款申请",
+      "body": "货物已退回，请尽快退款到原银行卡。",
+      "note": "反例：退款本质是 order_cancellation 的后续，非发票账单问题"
+    },
+
+    {
+      "category": "non_business",
+      "label": "POSITIVE",
+      "subject": "Microsoft 365 subscription renewal",
+      "body": "Your Microsoft 365 subscription is due to renew on April 30. Click here to manage your subscription or payment method.",
+      "note": "系统订阅通知，非业务"
+    },
+    {
+      "category": "non_business",
+      "label": "POSITIVE",
+      "subject": "假期通知",
+      "body": "通知全体员工：五一假期为5月1日至5日，请提前安排好工作交接。如有紧急事务请联系部门负责人。",
+      "note": "内部通知，非客户业务邮件"
+    }
+  ]
+}

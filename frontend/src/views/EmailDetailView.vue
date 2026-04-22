@@ -131,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { CheckCircle, XCircle, Mail } from 'lucide-vue-next'
 import { useEmailStore } from '../stores/email'
@@ -146,14 +146,34 @@ const rejecting = ref(false)
 const email = computed(() => emailStore.currentEmail)
 const editableReply = ref('')
 
+function getDraftKey(id: number) {
+  return `reply_draft_${id}`
+}
+
+// Auto-save draft to localStorage with 500ms debounce
+let draftSaveTimer: ReturnType<typeof setTimeout> | null = null
+watch(editableReply, (newVal) => {
+  if (!email.value) return
+  if (draftSaveTimer) clearTimeout(draftSaveTimer)
+  draftSaveTimer = setTimeout(() => {
+    const isEditable = email.value?.status === 'pending_review' || email.value?.status === 'send_failed'
+    if (isEditable) {
+      localStorage.setItem(getDraftKey(email.value!.id), newVal)
+    }
+  }, 500)
+})
+
 function formatDate(dateStr: string) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
 function sanitizeBody(body: string) {
-  // Strip HTML tags to plain text preview
-  return body?.replace(/<[^>]*>/g, '') || '(无内容)'
+  if (!body) return '(无内容)'
+  // Use DOM parsing to safely convert HTML to plain text
+  const div = document.createElement('div')
+  div.innerHTML = body
+  return div.textContent || div.innerText || '(无内容)'
 }
 
 async function handleApprove() {
@@ -161,22 +181,30 @@ async function handleApprove() {
   approving.value = true
   try {
     await emailStore.approveEmail(email.value.id, editableReply.value)
+    localStorage.removeItem(getDraftKey(email.value.id))
   } finally {
     approving.value = false
   }
 }
 
-
 async function handleReject() {
   if (!email.value) return
   rejecting.value = true
-  await emailStore.rejectEmail(email.value.id)
-  rejecting.value = false
+  try {
+    await emailStore.rejectEmail(email.value.id)
+  } catch {
+    // Error message handled by store layer
+  } finally {
+    rejecting.value = false
+  }
 }
 
 onMounted(async () => {
   const id = parseInt(route.params.id as string)
   await emailStore.loadEmail(id)
-  editableReply.value = emailStore.currentEmail?.reply_text || ''
+  const serverReply = emailStore.currentEmail?.reply_text || ''
+  // Restore saved draft if it differs from server reply
+  const savedDraft = localStorage.getItem(getDraftKey(id))
+  editableReply.value = (savedDraft && savedDraft !== serverReply) ? savedDraft : serverReply
 })
 </script>
