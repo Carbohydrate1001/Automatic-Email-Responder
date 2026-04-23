@@ -56,6 +56,17 @@ def init_db():
         """)
         _ensure_column(conn, "emails", "retry_count", "INTEGER DEFAULT 0")
         _ensure_column(conn, "emails", "last_error", "TEXT")
+
+        # Phase 2: Rubric-based scoring columns
+        _ensure_column(conn, "emails", "classification_rubric_scores", "TEXT")  # JSON
+        _ensure_column(conn, "emails", "auto_send_rubric_scores", "TEXT")      # JSON
+        _ensure_column(conn, "emails", "rubric_version", "TEXT DEFAULT 'v1.0'")
+
+        # Phase 3: Reply quality validation columns
+        _ensure_column(conn, "replies", "reply_validation_scores", "TEXT")     # JSON
+        _ensure_column(conn, "replies", "validation_passed", "INTEGER DEFAULT 1")  # Boolean
+        _ensure_column(conn, "replies", "validation_issues", "TEXT")           # JSON
+
         conn.commit()
 
 

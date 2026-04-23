@@ -1,6 +1,7 @@
 """
 Reply generation and email processing service.
 Generates GPT reply drafts and routes emails based on confidence threshold.
+Integrates rubric-based scoring for auto-send decisions.
 """
 
 from datetime import datetime, timezone
@@ -8,6 +9,9 @@ from openai import OpenAI
 from config import Config
 from models.database import get_db_connection
 from services.graph_service import EmailSendError
+from services.config_loader import get_config_loader
+from services.scoring_service import get_scoring_service
+from services.validation_service import get_validation_service
 
 
 REPLY_SYSTEM_PROMPT = """You are a professional customer service representative for a logistics and trade company.
@@ -23,7 +27,11 @@ class ReplyService:
     def __init__(self):
         self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL)
         self.model = Config.OPENAI_MODEL
-        self.threshold = Config.CONFIDENCE_THRESHOLD
+        self.config_loader = get_config_loader()
+        self.scoring_service = get_scoring_service()
+        self.validation_service = get_validation_service()
+        self.threshold = self.config_loader.get_global_threshold('confidence_threshold')
+        self.auto_send_minimum = self.config_loader.get_global_threshold('auto_send_minimum_confidence')
 
     @staticmethod
     def _extract_sender_local_part(sender: str) -> str:
@@ -342,9 +350,50 @@ class ReplyService:
         if category == "non_business" or not is_business_related:
             reply_text = self._generate_non_business_template_reply(sender)
             status = "ignored_no_reply"
+            auto_send_rubric_scores = None
         else:
             reply_text = self.generate_reply(sender, received_at, subject, body, category, reasoning)
-            auto_send_eligible = confidence >= self.threshold and confidence >= 0.8
+
+            # Phase 2: Use rubric-based scoring for auto-send decision
+            auto_send_rubric_scores = None
+            auto_send_eligible = confidence >= self.threshold and confidence >= self.auto_send_minimum
+
+            # Phase 3: Validate reply quality before auto-send
+            validation_result = None
+            try:
+                # Score auto-send readiness
+                rubric_result = self.scoring_service.score_auto_send_readiness(
+                    subject=subject,
+                    body=body,
+                    reply_text=reply_text,
+                    category=category,
+                    use_llm=True
+                )
+                auto_send_rubric_scores = rubric_result
+
+                # Use rubric recommendation if available
+                if 'auto_send_recommended' in rubric_result:
+                    auto_send_eligible = rubric_result['auto_send_recommended']
+
+                # Validate reply quality (hallucination, policy, tone, completeness)
+                if auto_send_eligible:
+                    validation_result = self.validation_service.validate_reply_quality(
+                        reply_text=reply_text,
+                        email_context={'subject': subject, 'body': body},
+                        category=category,
+                        company_info={},  # TODO: Load from company_info_service
+                        use_llm=True
+                    )
+
+                    # Block auto-send if validation fails
+                    if not validation_result.get('passed', False):
+                        auto_send_eligible = False
+                        print(f"Validation failed: {validation_result.get('blocking_issues', [])}")
+
+            except Exception as e:
+                # Fallback to original threshold-based decision
+                print(f"Auto-send rubric scoring or validation failed, using threshold-based decision: {e}")
+
             status = "auto_sent" if auto_send_eligible else "pending_review"
 
             if status == "auto_sent" and graph_service is not None:
@@ -362,22 +411,33 @@ class ReplyService:
 
 
         with get_db_connection() as conn:
-            # Upsert email record
+            # Extract rubric scores from classification
+            classification_rubric_scores = classification.get("rubric_scores")
+            import json
+
+            # Upsert email record with rubric scores
             conn.execute(
                 """
                 INSERT INTO emails (message_id, subject, sender, received_at, body,
-                                    category, confidence, reasoning, status, retry_count, last_error)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    category, confidence, reasoning, status, retry_count, last_error,
+                                    classification_rubric_scores, auto_send_rubric_scores, rubric_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(message_id) DO UPDATE SET
                     category=excluded.category,
                     confidence=excluded.confidence,
                     reasoning=excluded.reasoning,
                     status=excluded.status,
                     retry_count=excluded.retry_count,
-                    last_error=excluded.last_error
+                    last_error=excluded.last_error,
+                    classification_rubric_scores=excluded.classification_rubric_scores,
+                    auto_send_rubric_scores=excluded.auto_send_rubric_scores,
+                    rubric_version=excluded.rubric_version
                 """,
                 (message_id, subject, sender, received_at, body,
-                 category, confidence, reasoning, status, retry_count, last_error),
+                 category, confidence, reasoning, status, retry_count, last_error,
+                 json.dumps(classification_rubric_scores) if classification_rubric_scores else None,
+                 json.dumps(auto_send_rubric_scores) if auto_send_rubric_scores else None,
+                 'v1.0'),
 
             )
             email_row = conn.execute(
@@ -385,10 +445,15 @@ class ReplyService:
             ).fetchone()
             email_id = email_row["id"]
 
-            # Save reply
+            # Save reply with validation results
             conn.execute(
-                "INSERT INTO replies (email_id, reply_text, sent_at) VALUES (?, ?, ?)",
-                (email_id, reply_text, sent_at),
+                """INSERT INTO replies (email_id, reply_text, sent_at, reply_validation_scores,
+                                       validation_passed, validation_issues)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (email_id, reply_text, sent_at,
+                 json.dumps(validation_result) if validation_result else None,
+                 1 if (validation_result and validation_result.get('passed', True)) else 0,
+                 json.dumps(validation_result.get('blocking_issues', [])) if validation_result else None),
             )
 
             # Audit log
