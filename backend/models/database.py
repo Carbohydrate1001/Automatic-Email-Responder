@@ -67,6 +67,11 @@ def init_db():
         _ensure_column(conn, "replies", "validation_passed", "INTEGER DEFAULT 1")  # Boolean
         _ensure_column(conn, "replies", "validation_issues", "TEXT")           # JSON
 
+        # Phase 5: Privacy & Compliance columns
+        _ensure_column(conn, "emails", "consent_status", "TEXT DEFAULT 'unknown'")  # GIVEN, WITHDRAWN, UNKNOWN
+        _ensure_column(conn, "emails", "pii_detected", "INTEGER DEFAULT 0")         # Boolean
+        _ensure_column(conn, "emails", "pii_types", "TEXT")                         # JSON list of detected PII types
+
         conn.commit()
 
 

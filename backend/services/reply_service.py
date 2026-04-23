@@ -12,7 +12,11 @@ from services.graph_service import EmailSendError
 from services.config_loader import get_config_loader
 from services.scoring_service import get_scoring_service
 from services.validation_service import get_validation_service
+from services.pii_service import get_pii_service
+from models.audit_log import log_audit_event, AuditAction
+from utils.logger import get_logger
 
+logger = get_logger('reply_service')
 
 REPLY_SYSTEM_PROMPT = """You are a professional customer service representative for a logistics and trade company.
 Write a clear, polite, and helpful reply email to the customer based on the email content and its identified category.
@@ -30,6 +34,7 @@ class ReplyService:
         self.config_loader = get_config_loader()
         self.scoring_service = get_scoring_service()
         self.validation_service = get_validation_service()
+        self.pii_service = get_pii_service()
         self.threshold = self.config_loader.get_global_threshold('confidence_threshold')
         self.auto_send_minimum = self.config_loader.get_global_threshold('auto_send_minimum_confidence')
 
@@ -343,9 +348,29 @@ class ReplyService:
         reasoning = classification.get("reasoning", "")
         is_business_related = classification.get("is_business_related", category != "non_business")
 
+        # Phase 5: PII detection on incoming email
+        pii_detected = False
+        pii_types_found = []
+        try:
+            full_text = f"{subject or ''}\n{body or ''}"
+            pii_result = self.pii_service.detect_pii(full_text)
+            if pii_result:
+                pii_detected = True
+                pii_types_found = [pt.value for pt in pii_result.keys()]
+                logger.info("PII detected in email", {
+                    'message_id': message_id,
+                    'pii_types': pii_types_found
+                })
+        except Exception as e:
+            logger.error("PII detection failed", {'error': str(e)})
+
+        # Phase 5: Consent check
+        consent_status = classification.get("consent_status", "unknown")
+
         sent_at = None
         retry_count = 0
         last_error = None
+        validation_result = None
 
         if category == "non_business" or not is_business_related:
             reply_text = self._generate_non_business_template_reply(sender)
@@ -359,7 +384,6 @@ class ReplyService:
             auto_send_eligible = confidence >= self.threshold and confidence >= self.auto_send_minimum
 
             # Phase 3: Validate reply quality before auto-send
-            validation_result = None
             try:
                 # Score auto-send readiness
                 rubric_result = self.scoring_service.score_auto_send_readiness(
@@ -420,8 +444,9 @@ class ReplyService:
                 """
                 INSERT INTO emails (message_id, subject, sender, received_at, body,
                                     category, confidence, reasoning, status, retry_count, last_error,
-                                    classification_rubric_scores, auto_send_rubric_scores, rubric_version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    classification_rubric_scores, auto_send_rubric_scores, rubric_version,
+                                    consent_status, pii_detected, pii_types)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(message_id) DO UPDATE SET
                     category=excluded.category,
                     confidence=excluded.confidence,
@@ -431,13 +456,19 @@ class ReplyService:
                     last_error=excluded.last_error,
                     classification_rubric_scores=excluded.classification_rubric_scores,
                     auto_send_rubric_scores=excluded.auto_send_rubric_scores,
-                    rubric_version=excluded.rubric_version
+                    rubric_version=excluded.rubric_version,
+                    consent_status=excluded.consent_status,
+                    pii_detected=excluded.pii_detected,
+                    pii_types=excluded.pii_types
                 """,
                 (message_id, subject, sender, received_at, body,
                  category, confidence, reasoning, status, retry_count, last_error,
                  json.dumps(classification_rubric_scores) if classification_rubric_scores else None,
                  json.dumps(auto_send_rubric_scores) if auto_send_rubric_scores else None,
-                 'v1.0'),
+                 'v1.0',
+                 consent_status,
+                 1 if pii_detected else 0,
+                 json.dumps(pii_types_found) if pii_types_found else None),
 
             )
             email_row = conn.execute(
@@ -462,6 +493,28 @@ class ReplyService:
                 (email_id, status, operator),
             )
             conn.commit()
+
+        # Phase 5: Compliance audit logging
+        log_audit_event(
+            action=AuditAction.EMAIL_RECEIVED,
+            email_id=email_id,
+            operator=operator,
+            details={'category': category, 'confidence': confidence, 'pii_detected': pii_detected}
+        )
+        if pii_detected:
+            log_audit_event(
+                action=AuditAction.PII_DETECTED,
+                email_id=email_id,
+                operator=operator,
+                details={'pii_types': pii_types_found}
+            )
+        if status == "auto_sent":
+            log_audit_event(
+                action=AuditAction.AUTO_SENT,
+                email_id=email_id,
+                operator=operator,
+                details={'confidence': confidence}
+            )
 
         return {
             "id": email_id,
