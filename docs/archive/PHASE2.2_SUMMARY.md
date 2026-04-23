@@ -42,7 +42,7 @@ Phase 2.2 successfully implemented a complete confidence calibration and thresho
    - Optional calibration application
    - Backward compatibility maintained
 
-6. **Documentation** (`backend/docs/CALIBRATION_REPORT.md`)
+6. **Documentation** (`docs/archive/CALIBRATION_REPORT.md`)
    - Comprehensive implementation guide
    - Usage examples for all tools
    - Production deployment workflow
@@ -224,7 +224,7 @@ print(f"Calibrated confidence: {result['confidence']}")
 - `backend/scripts/train_calibration_model.py`
 - `backend/scripts/threshold_optimization.py`
 - `backend/services/scoring_service.py`
-- `backend/docs/CALIBRATION_REPORT.md`
+- `docs/archive/CALIBRATION_REPORT.md`
 
 ### Academic References
 - Guo et al. (2017): "On Calibration of Modern Neural Networks"

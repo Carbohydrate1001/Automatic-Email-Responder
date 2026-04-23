@@ -522,7 +522,7 @@ pytest tests/unit/test_validation_service.py -v
 3. `backend/services/validation_report_generator.py` - Visual reports
 4. `backend/scripts/demo_validation.py` - Demonstration script
 5. `backend/tests/unit/test_validation_service.py` - Test suite
-6. `backend/docs/PHASE3_SUMMARY.md` - This document
+6. `docs/archive/PHASE3_SUMMARY.md` - This document
 
 ### Modified Files (3):
 1. `backend/config/rubrics.yaml` - Added reply quality rubric

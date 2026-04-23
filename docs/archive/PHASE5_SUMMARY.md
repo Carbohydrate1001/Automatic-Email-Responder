@@ -161,7 +161,7 @@ PII detection and audit logging integrated into the email processing pipeline:
 2. `backend/models/audit_log.py` — Compliance audit logging
 3. `backend/scripts/data_retention.py` — Data lifecycle management
 4. `backend/tests/unit/test_pii_service.py` — PII service tests
-5. `backend/docs/PRIVACY_POLICY.md` — Privacy policy documentation
+5. `docs/PRIVACY_POLICY.md` — Privacy policy documentation
 
 ### Modified Files (2):
 1. `backend/models/database.py` — Added consent_status, pii_detected, pii_types columns

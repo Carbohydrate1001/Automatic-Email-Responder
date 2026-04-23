@@ -1,46 +1,49 @@
 # Developer Guide
 
+功能级总览见中文文档 [已实现功能说明.md](已实现功能说明.md)；本页侧重仓库结构与扩展方式。
+
 ## Project Structure
 
 ```
-backend/
-├── app.py                    # Flask application entry point
-├── config.py                 # Environment configuration
-├── config/                   # YAML configuration files
-│   ├── categories.yaml       # Email categories and keywords
-│   ├── rubrics.yaml          # Scoring rubrics
-│   ├── thresholds.yaml       # Confidence thresholds
-│   └── policies.yaml         # Policy rules
-├── models/
-│   ├── database.py           # SQLite schema and connection
-│   └── audit_log.py          # Compliance audit logging
-├── services/
-│   ├── classification_service.py  # Email classification
-│   ├── reply_service.py           # Reply generation + pipeline
-│   ├── scoring_service.py         # Rubric-based scoring
-│   ├── validation_service.py      # Reply quality validation
-│   ├── pii_service.py             # PII detection/redaction
-│   ├── language_service.py        # Language detection
-│   ├── config_loader.py           # YAML config management
-│   ├── company_info_service.py    # Product catalog
-│   └── graph_service.py           # Microsoft Graph API
-├── utils/
-│   ├── retry_handler.py      # Retry + circuit breaker
-│   ├── logger.py             # Structured logging
-│   └── ab_testing.py         # A/B testing framework
-├── api/
-│   ├── health.py             # Health check endpoints
-│   └── metrics.py            # Metrics endpoints
-├── routes/                   # Flask route blueprints
-├── scripts/                  # CLI tools and analysis scripts
-├── tests/                    # Test suites
-│   ├── unit/                 # Unit tests
-│   ├── e2e/                  # End-to-end tests
-│   ├── regression/           # Golden dataset regression
-│   ├── integration/          # Integration tests
-│   ├── edge_cases/           # Edge case tests
-│   └── fixtures/             # Test data
-└── docs/                     # Documentation
+Automatic-Email-Responder/
+├── docs/                     # Documentation (start at docs/README.md)
+└── backend/
+    ├── app.py                    # Flask application entry point
+    ├── config.py                 # Environment configuration
+    ├── config/                   # YAML configuration files
+    │   ├── categories.yaml       # Email categories and keywords
+    │   ├── rubrics.yaml          # Scoring rubrics
+    │   ├── thresholds.yaml       # Confidence thresholds
+    │   └── policies.yaml         # Policy rules
+    ├── models/
+    │   ├── database.py           # SQLite schema and connection
+    │   └── audit_log.py          # Compliance audit logging
+    ├── services/
+    │   ├── classification_service.py  # Email classification
+    │   ├── reply_service.py           # Reply generation + pipeline
+    │   ├── scoring_service.py         # Rubric-based scoring
+    │   ├── validation_service.py      # Reply quality validation
+    │   ├── pii_service.py             # PII detection/redaction
+    │   ├── language_service.py        # Language detection
+    │   ├── config_loader.py           # YAML config management
+    │   ├── company_info_service.py    # Product catalog
+    │   └── graph_service.py           # Microsoft Graph API
+    ├── utils/
+    │   ├── retry_handler.py      # Retry + circuit breaker
+    │   ├── logger.py             # Structured logging
+    │   └── ab_testing.py         # A/B testing framework
+    ├── api/
+    │   ├── health.py             # Health check endpoints
+    │   └── metrics.py            # Metrics endpoints
+    ├── routes/                   # Flask route blueprints
+    ├── scripts/                  # CLI tools and analysis scripts
+    └── tests/                    # Test suites
+        ├── unit/                 # Unit tests
+        ├── e2e/                  # End-to-end tests
+        ├── regression/           # Golden dataset regression
+        ├── integration/          # Integration tests
+        ├── edge_cases/           # Edge case tests
+        └── fixtures/             # Test data
 ```
 
 ## Adding a New Email Category

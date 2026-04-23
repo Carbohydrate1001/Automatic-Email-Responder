@@ -741,7 +741,7 @@ curl http://localhost:5000/health/circuit-breakers
 3. `backend/api/health.py` - Health check endpoints
 4. `backend/api/README.md` - API documentation
 5. `backend/tests/unit/test_retry_handler.py` - Test suite
-6. `backend/docs/PHASE4_SUMMARY.md` - This document
+6. `docs/archive/PHASE4_SUMMARY.md` - This document
 
 ### Modified Files (1):
 1. `backend/services/classification_service.py` - Added retry logic and fallback

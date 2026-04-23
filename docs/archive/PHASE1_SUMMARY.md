@@ -25,7 +25,7 @@ Phase 1 (Foundation) has been successfully completed. This phase established the
 - `backend/pytest.ini` - Pytest configuration with coverage settings
 - `backend/tests/conftest.py` - Shared fixtures (temp_db, mock_openai, mock_graph_service)
 - `backend/run_tests.sh` - Test runner script
-- `backend/TESTING.md` - Comprehensive testing documentation
+- `docs/TESTING.md` - Comprehensive testing documentation (see repo root `docs/`)
 
 **Unit Tests (100+ tests):**
 - `backend/tests/unit/test_classification_service.py` - 30+ tests
@@ -171,7 +171,7 @@ pytest tests/ -v --cov=services --cov=models --cov=routes
   - Error handling
 
 **Documentation:**
-- `backend/CONFIGURATION.md` - Comprehensive guide:
+- `docs/CONFIGURATION.md` - Comprehensive guide:
   - Configuration file structure
   - Adding new categories
   - Adjusting thresholds

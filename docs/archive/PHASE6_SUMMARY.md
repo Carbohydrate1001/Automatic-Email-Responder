@@ -100,7 +100,7 @@ tests/unit/test_retry_handler.py     — 24 passed
 3. `backend/utils/ab_testing.py` — A/B testing framework
 4. `backend/scripts/evaluate_system.py` — Evaluation metrics script
 5. `backend/api/metrics.py` — Metrics API endpoints
-6. `backend/docs/PHASE6_SUMMARY.md` — This document
+6. `docs/archive/PHASE6_SUMMARY.md` — This document
 
 ## Files Modified
 

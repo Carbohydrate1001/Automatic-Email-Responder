@@ -220,7 +220,7 @@ Comprehensive test suite for scoring service
 - `backend/config/rubrics.yaml` - Rubric definitions
 - `backend/services/scoring_service.py` - Scoring service implementation
 - `backend/tests/unit/test_scoring_service.py` - Scoring service tests
-- `backend/docs/PHASE2_SUMMARY.md` - This document
+- `docs/archive/PHASE2_SUMMARY.md` - This document
 
 ### Modified Files
 - `backend/models/database.py` - Added rubric score fields

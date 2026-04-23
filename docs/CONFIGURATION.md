@@ -4,7 +4,36 @@
 
 The Automatic Email Responder now uses external YAML configuration files for categories, thresholds, and routing rules. This makes it easy to modify system behavior without changing code.
 
-## Configuration Files
+## Environment Variables
+
+Create a `.env` file in the `backend/` directory:
+
+```env
+# Flask
+FLASK_SECRET_KEY=your-secret-key
+FLASK_DEBUG=True
+FLASK_PORT=5005
+
+# Microsoft Azure AD
+AZURE_CLIENT_ID=your-client-id
+AZURE_CLIENT_SECRET=your-client-secret
+AZURE_TENANT_ID=your-tenant-id
+AZURE_REDIRECT_URI=http://localhost:5005/auth/callback
+
+# OpenAI
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+
+# Thresholds
+CONFIDENCE_THRESHOLD=0.75
+SEND_RETRY_MAX_ATTEMPTS=3
+SEND_RETRY_DELAY_SECONDS=1.0
+```
+
+Variable names and defaults are ultimately defined in `backend/config.py`.
+
+## Configuration file layout
 
 All configuration files are located in `backend/config/`:
 
@@ -12,8 +41,26 @@ All configuration files are located in `backend/config/`:
 backend/config/
 ├── categories.yaml      # Email categories and keywords
 ├── thresholds.yaml      # Routing thresholds and rules
+├── rubrics.yaml         # Scoring rubrics
+├── policies.yaml        # Policy rules for reply validation
 └── schema.json          # JSON schema for validation
 ```
+
+### `rubrics.yaml`
+
+Scoring rubrics for classification and reply quality.
+
+- `classification_rubric`: Dimensions for classification confidence
+- `auto_send_rubric`: Dimensions for auto-send readiness
+- `reply_quality_rubric`: Dimensions for reply validation
+
+### `policies.yaml`
+
+Forbidden patterns and policy rules for reply validation.
+
+- `forbidden_patterns`: Regex patterns that block auto-send
+- `approved_language_templates`: Pre-approved phrases
+- `authority_limits`: What the system can/cannot commit to
 
 ## Categories Configuration
 
@@ -297,6 +344,25 @@ When changing thresholds:
 - Make small incremental changes (±0.05)
 - Monitor for 1-2 days before further adjustments
 - Document the reason for each change
+
+## Tuning guide
+
+### Adjusting auto-send rate
+
+- Increase `auto_send_minimum_confidence` (in YAML / env as applicable) to reduce auto-sends
+- Decrease category-specific thresholds to increase auto-sends for lower-risk categories
+- Run `scripts/threshold_optimization.py` with calibration data when tuning systematically
+
+### Adjusting classification
+
+- Update `categories.yaml` keywords for better business-gate accuracy
+- Modify classification prompts in `classification_service.py` when needed
+- Add new categories by extending `categories.yaml` and related routing rules
+
+### Data retention
+
+- Edit `DEFAULT_RETENTION` in `scripts/data_retention.py`
+- Run with `--dry-run` to preview before executing
 
 ## Migration from Hardcoded Values
 

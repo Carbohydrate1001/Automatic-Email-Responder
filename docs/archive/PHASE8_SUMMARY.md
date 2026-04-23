@@ -32,8 +32,8 @@ Phase 8 completes the project with comprehensive documentation covering architec
 - Metrics endpoints
 - Company info CRUD
 
-### 3. Configuration Guide
-**File**: `CONFIGURATION_GUIDE.md`
+### 3. Configuration
+**File**: `../CONFIGURATION.md` (environment variables + YAML layout, merged former configuration guide)
 
 - Environment variables reference
 - YAML configuration files explained
@@ -69,7 +69,7 @@ Phase 8 completes the project with comprehensive documentation covering architec
 - Code patterns and conventions
 
 ### 7. Final Report
-**File**: `FINAL_REPORT.md`
+**File**: `FINAL_REPORT.md` (this directory: `archive/`)
 
 - Executive summary of all 8 phases
 - Key metrics and technical highlights
@@ -108,14 +108,14 @@ All 8 phases successfully implemented:
 
 ## Files Created in Phase 8
 
-1. `docs/ARCHITECTURE.md`
-2. `docs/API_REFERENCE.md`
-3. `docs/CONFIGURATION_GUIDE.md`
-4. `docs/OPERATOR_MANUAL.md`
-5. `docs/DEPLOYMENT.md`
-6. `docs/DEVELOPER_GUIDE.md`
-7. `docs/FINAL_REPORT.md`
-8. `docs/PHASE8_SUMMARY.md` (this file)
+1. `../ARCHITECTURE.md`
+2. `../API_REFERENCE.md`
+3. `../CONFIGURATION.md` (includes former `CONFIGURATION_GUIDE.md` content)
+4. `../OPERATOR_MANUAL.md`
+5. `../DEPLOYMENT.md`
+6. `../DEVELOPER_GUIDE.md`
+7. `FINAL_REPORT.md` (now under `docs/archive/`)
+8. `PHASE8_SUMMARY.md` (this file, under `docs/archive/`)
 
 ---
 

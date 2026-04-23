@@ -36,7 +36,7 @@ All 8 phases of the system improvement plan have been implemented, transforming 
 - **Services implemented**: 10
 - **API endpoints**: 15+
 - **Configuration files**: 4 YAML
-- **Documentation files**: 15+
+- **Documentation**: core manuals under `docs/`; historical phase reports under `docs/archive/`
 - **Email categories supported**: 7
 - **Languages supported**: Chinese, English, Mixed
 - **PII types detected**: 7
@@ -70,4 +70,4 @@ All 8 phases of the system improvement plan have been implemented, transforming 
 | config/ | 4 |
 | scripts/ | 6 |
 | tests/ | 15+ |
-| docs/ | 15+ |
+| docs/ | handbooks at repo `docs/`; phase summaries in `docs/archive/` |
