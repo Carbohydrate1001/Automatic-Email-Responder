@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created_date": "2026-04-23",
+    "description": "Human-labeled calibration dataset for confidence score calibration",
+    "total_samples": 0,
+    "categories": {}
+  },
+  "samples": [
+    {
+      "id": "sample_001",
+      "subject": "订单取消申请",
+      "body": "您好，我想取消订单#12345，因为我不再需要这个产品了。请帮我处理退款，谢谢。",
+      "predicted_category": "order_cancellation",
+      "true_category": "order_cancellation",
+      "confidence": 0.92,
+      "correct": true,
+      "labeled_by": "human_reviewer",
+      "labeled_date": "2026-04-23",
+      "notes": "Clear cancellation request with order number"
+    },
+    {
+      "id": "sample_002",
+      "subject": "Product inquiry",
+      "body": "Hi, I'm interested in your laptop models. Can you send me the price list and specifications?",
+      "predicted_category": "pricing_inquiry",
+      "true_category": "pricing_inquiry",
+      "confidence": 0.88,
+      "correct": true,
+      "labeled_by": "human_reviewer",
+      "labeled_date": "2026-04-23",
+      "notes": "Standard pricing inquiry"
+    },
+    {
+      "id": "sample_003",
+      "subject": "Where is my package?",
+      "body": "I ordered 2 weeks ago but haven't received anything. Order #67890. What's going on?",
+      "predicted_category": "order_tracking",
+      "true_category": "shipping_exception",
+      "confidence": 0.75,
+      "correct": false,
+      "labeled_by": "human_reviewer",
+      "labeled_date": "2026-04-23",
+      "notes": "Misclassified - this is an exception (delayed delivery) not routine tracking"
+    }
+  ],
+  "instructions": {
+    "how_to_add_samples": "Add new samples to the 'samples' array with all required fields",
+    "required_fields": ["id", "subject", "body", "predicted_category", "true_category", "confidence", "correct"],
+    "optional_fields": ["labeled_by", "labeled_date", "notes"],
+    "target_size": "200+ samples across all categories for robust calibration",
+    "labeling_guidelines": "Ensure true_category reflects the actual intent, not just keyword matches"
+  }
+}
