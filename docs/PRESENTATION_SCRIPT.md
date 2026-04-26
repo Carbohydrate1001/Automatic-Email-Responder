@@ -1,6 +1,6 @@
-# Presentation script (10 minutes · four sections) — **English**
+# Presentation script (10 minutes · four sections) — English
 
-**Chinese version**: [`PRESENTATION_SCRIPT.zh.md`](PRESENTATION_SCRIPT.zh.md).
+Chinese version: [`PRESENTATION_SCRIPT.zh.md`](PRESENTATION_SCRIPT.zh.md).
 
 ---
 
@@ -9,10 +9,10 @@
 | Block | ~Time | Focus |
 | --- | --- | --- |
 | Opening | 0:30 | Scenario + one-line midterm → final |
-| **1. Novelty** | **2:30** | Why this matters; what we actually built differently |
-| **2. Technical complexity** | **2:00** | The forced order of operations in two core methods |
-| **3. Implementation process** | **2:00** | What we built in sequence, and why in that order |
-| **4. Challenges** | **2:30** | Specific problem → specific solution → observable result |
+| 1. Novelty | 2:30 | Why this matters; what we actually built differently |
+| 2. Technical complexity | 2:00 | The forced order of operations in two core methods |
+| 3. Implementation process | 2:00 | What we built in sequence, and why in that order |
+| 4. Challenges | 2:30 | Specific problem → specific solution → observable result |
 | Buffer | 0:30 | Demo pointer, Q&A bridge |
 
 Steal 15–20 s from §2/§3 if you live-demo.
@@ -21,7 +21,7 @@ Steal 15–20 s from §2/§3 if you live-demo.
 
 ## Opening (~30s)
 
-> "We built an automated email response system for a logistics and trade use case. Emails arrive through **Microsoft Graph**, **GPT** classifies intent and drafts replies, and a **Vue** front end lets operators review and track everything. By midterm we already had OAuth login, a two-stage classifier covering seven intent categories, auto-send when confidence is high and manual review otherwise, and a stats dashboard. After that we hardened the system: we replaced the raw confidence score with a multi-dimensional rubric, added a three-stage validation pipeline before any auto-send, wrapped all external calls with retry and circuit-breaker logic, and built a test suite covering unit, integration, and end-to-end scenarios. I'll walk through what makes this novel, how the pipeline actually works, how we built it, and the real technical problems we hit."
+> "We built an automated email response system for a logistics and trade use case. Emails arrive through Microsoft Graph, GPT classifies intent and drafts replies, and a Vue front end lets operators review and track everything. By midterm we already had OAuth login, a two-stage classifier covering seven intent categories, auto-send when confidence is high and manual review otherwise, and a stats dashboard. After that we hardened the system: we replaced the raw confidence score with a multi-dimensional rubric, added a three-stage validation pipeline before any auto-send, wrapped all external calls with retry and circuit-breaker logic, and built a test suite covering unit, integration, and end-to-end scenarios. I'll walk through what makes this novel, how the pipeline actually works, how we built it, and the real technical problems we hit."
 
 ---
 
@@ -41,11 +41,11 @@ Real Outlook mailbox integration via Microsoft Graph. A two-stage classifier: a 
 
 The midterm's auto-send decision was a single number: `confidence ≥ threshold`. The gap is that an LLM can return `confidence=0.87` on a reply that promises free shipping or quotes an unverified price. We closed that gap in three concrete ways:
 
-- **Rubric scoring on both sides of the pipeline** — `score_classification` evaluates four dimensions (keyword match, intent clarity, context completeness, exclusion confidence) and can replace the raw LLM confidence with a weighted composite. `score_auto_send_readiness` evaluates the reply before send, where the risk dimension alone (35% weight) can veto auto-send regardless of the composite score. Both results are stored as JSON columns so every routing decision is auditable.
-- **Three-stage validation before any auto-send** — `validate_reply_quality` runs policy compliance first (fast, rule-based), then hallucination detection (cross-checking factual claims against company data), then an LLM quality pass. A failure at any stage turns off auto-send in code — it routes to `pending_review`. This is not a policy statement; it is a hard branch in `process_email`.
-- **PII scanning before any LLM call** — `detect_pii` runs on the inbound subject and body before the email enters classification, and detected types are stored with a redaction flag, not written to logs in plaintext.
+- Rubric scoring on both sides of the pipeline — `score_classification` evaluates four dimensions (keyword match, intent clarity, context completeness, exclusion confidence) and can replace the raw LLM confidence with a weighted composite. `score_auto_send_readiness` evaluates the reply before send, where the risk dimension alone (35% weight) can veto auto-send regardless of the composite score. Both results are stored as JSON columns so every routing decision is auditable.
+- Three-stage validation before any auto-send — `validate_reply_quality` runs policy compliance first (fast, rule-based), then hallucination detection (cross-checking factual claims against company data), then an LLM quality pass. A failure at any stage turns off auto-send in code — it routes to `pending_review`. This is not a policy statement; it is a hard branch in `process_email`.
+- PII scanning before any LLM call — `detect_pii` runs on the inbound subject and body before the email enters classification, and detected types are stored with a redaction flag, not written to logs in plaintext.
 
-**One-line close**: "The novelty is that 'auto-send' is not a confidence threshold — it is five sequential gates, any one of which can stop the reply."
+One-line close: "The novelty is that 'auto-send' is not a confidence threshold — it is five sequential gates, any one of which can stop the reply."
 
 ---
 
@@ -69,7 +69,7 @@ PII scan on the inbound subject and body. Reply generation (template + GPT fallb
 
 `rubrics.yaml` holds dimension weights, scoring scale (0–3 per dimension), and composite thresholds. `policies.yaml` holds forbidden patterns (e.g. "guaranteed", specific dollar amounts, "not our problem") and a list of pre-approved phrases. `categories.yaml` defines the seven intent categories. Changing auto-send sensitivity or blocking a new phrase is a file edit — no code change required.
 
-**Optional 10s closer**: "Complexity = one route, two methods with a forced seven-step order, and every decision written to SQLite so you can always explain why an email was sent or held."
+Optional 10s closer: "Complexity = one route, two methods with a forced seven-step order, and every decision written to SQLite so you can always explain why an email was sent or held."
 
 ---
 
@@ -97,35 +97,37 @@ With the core pipeline stable and tested, we added exponential backoff (1 s base
 
 PII scanning (7 regex types: phone numbers, email addresses, physical addresses, ID numbers, credit card patterns, personal name patterns, bank account numbers) was added at pipeline entry. Language detection uses Unicode block ratios — CJK character proportion vs. Latin — to select between Chinese and English reply templates without any external library dependency. End-to-end tests then verified the full `fetch → classify → score → validate → route` path with mocked external dependencies, and a regression suite locked in the expected routing for a set of golden-path emails.
 
-**One-line close**: "Each step added one verifiable guarantee; by the end, auto-send fires only when classification confidence, rubric scores, and all three validation stages agree."
+One-line close: "Each step added one verifiable guarantee; by the end, auto-send fires only when classification confidence, rubric scores, and all three validation stages agree."
 
 ---
 
 ## 4. Key challenges and how you addressed them (~2:30)
 
-| Challenge | The concrete gap | What we implemented | Observable result |
-| --- | --- | --- | --- |
-| **LLM confidence is not calibrated** | `confidence=0.87` does not mean 87% correct; the threshold was a gut number | Four-dimension classification rubric; Platt scaling / isotonic regression calibration analysis; per-category thresholds in `rubrics.yaml` | Auto-send threshold is now based on measured calibration, not a guess |
-| **A confident classification can still produce a bad reply** | High confidence → auto-send, with no check on the reply content itself | `score_auto_send_readiness` with a hard risk-dimension veto; three-stage `validate_reply_quality` pipeline | Replies containing unauthorized commitments or unverified claims are blocked before sending |
-| **Policy violations are invisible to the LLM** | The LLM does not know what the company is and is not authorized to promise | Regex-based `check_policy_compliance` against `policies.yaml`; forbidden patterns include specific price commitments, "guaranteed", "100% refund", and dismissive phrases | Policy-violating text is caught in Stage 1 before the slower LLM validation stages run |
-| **The LLM can invent product details** | A reply saying "delivery takes 3 days" or "the price is $120" may be fabricated | `detect_hallucinations` extracts factual claims (price figures, product specs, timeframes) and verifies each against `company_products.json`; false claims block auto-send | Factual fabrication is caught and routed to manual review |
-| **Graph and OpenAI calls fail intermittently** | The midterm had basic retry fields on the send side only | `@with_retry` with exponential backoff and ±10% jitter on all LLM calls; circuit breakers with separate thresholds for OpenAI (5 failures) and Graph (3 failures); keyword-based fallback classification when the circuit is open | The system stays operational during transient API outages; operators can see circuit breaker state at `/health/circuit-breakers` |
-| **Changes to routing logic could silently break existing behavior** | Small initial test surface; no coverage of edge cases or full pipeline flow | 200+ tests across unit, integration, edge case, and end-to-end layers; regression suite with golden-path emails; explicit tests for the fallback, PII, and language-detection paths | Every subsequent change to `classify_email` or `process_email` ran against the full suite before merge |
+Narrative: this section answers two things only: what key challenges you hit, and how you addressed each; the table is aligned to those two questions. In delivery, state the challenge, then the response.
 
-**Closing (~20s)**: "The underlying problem in all of these is the same: LLM outputs are probabilistic, but business email commitments are not. The engineering answer is to layer deterministic checks — rubric scoring, policy regex, fact-checking, circuit breakers — around the probabilistic core, so that auto-send only fires when the system can actually defend the decision."
+| The key challenge we hit | How we addressed it |
+| --- | --- |
+| Confidence is not the same as being right: `confidence=0.87` is not "about 87% correct"; the value is a self-reported score from the model and, before calibration, is not a reliable estimate of the true hit rate—so a single fixed threshold is not an evidence-based control. | A four-dimension classification rubric reframes "should we trust this classification"; Platt / isotonic calibration; per-category thresholds in `rubrics.yaml` so the auto-send bar is set from measured performance, not the raw, uncalibrated self-reported value. |
+| Classification is not the reply: a high-confidence label can still yield unsafe or off-topic text; the label alone does not protect the send. | `score_auto_send_readiness` with a hard veto on the risk dimension; post-generation `validate_reply_quality` in three stages to judge the actual text. |
+| Policy is org rules, not model common sense: the LLM does not know what the company may or may not promise; it can output plausible-looking violations. | `check_policy_compliance` runs regex over `policies.yaml` (e.g. specific price quotes, "guaranteed", "100% refund", deflecting responsibility) — Stage 1, before slower LLM checks. |
+| Product facts can be invented: e.g. "3-day delivery" or "$120" may be hallucinated and not match the real catalog. | `detect_hallucinations` extracts price, spec, and timeframe claims and checks each against `company_products.json`; mismatches disable auto-send and route to human review. |
+| External APIs are flaky: OpenAI and Graph fail transiently; the midterm only added retries on the send path and did not provide equivalent backoff and failure handling for classification and multi-round LLM calls. | `@with_retry` on all LLM-related calls with exponential backoff and ±10% jitter; separate circuit breakers for OpenAI (5 failures) and Graph (3); keyword fallback when open; state at `GET /health/circuit-breakers`. |
+| Refactoring risk in `classify_email` / `process_email`: a one-line change to routing or a validation step can send emails that used to be handled correctly into the wrong terminal state, and you cannot manually re-check every case after every small edit. If early testing covered only the happy path, not edge cases or the full `fetch → … → route` chain, that kind of bug slips through easily. | 200+ automated tests pin expected outcomes from typical inputs through to final routing (unit → integration → edge → E2E), with golden-path baselines, plus dedicated tests for fallback, PII, and language. Every change to those two functions must pass the full suite in CI before merge—no green merge—so silent regressions do not land on the main branch. |
+
+Closing (~20s): "The challenges boil down to this: the model is probabilistic, but a business reply must be a defensible commitment. Our response is to stack testable, repeatable layers around that core — rubric and calibration, policy regex, fact checking, retries and circuit breakers, and broad test coverage — so auto-send runs only when all of these checks are jointly satisfied for that send."
 
 ---
 
 ## 5. Q&A hooks
 
-- **vs generic chatbot**: Tied to real Outlook mailboxes, a fixed seven-category taxonomy, a human review queue for anything below threshold, and hard policy and PII layers the LLM cannot bypass.
-- **Stability claim**: Retry + circuit breaker + 200+ tests. Do not claim production SLAs — this is a course project running against live APIs in a lab environment.
-- **Privacy**: PII detection and audit logging are implemented and tested. Org-wide deployment would require a formal data classification and retention review beyond the course scope.
-- **Why not just raise the confidence threshold?**: A higher threshold reduces auto-send volume but does not fix calibration — a miscalibrated model can be confidently wrong. Rubric scoring and validation address the quality of the decision, not just the rate.
+- vs generic chatbot: Tied to real Outlook mailboxes, a fixed seven-category taxonomy, a human review queue for anything below threshold, and hard policy and PII layers the LLM cannot bypass.
+- Stability claim: Retry + circuit breaker + 200+ tests. Do not claim production SLAs — this is a course project running against live APIs in a lab environment.
+- Privacy: PII detection and audit logging are implemented and tested. Org-wide deployment would require a formal data classification and retention review beyond the course scope.
+- Why not just raise the confidence threshold?: A higher threshold reduces auto-send volume but does not fix calibration — a miscalibrated model can be confidently wrong. Rubric scoring and validation address the quality of the decision, not just the rate.
 
 ---
 
 ## Notes
 
-- **Language**: Defend in English; this file is the English master.
-- **Numbers to verify before the session**: 7 intent categories; 7 PII types; 4 YAML config files; 10 backend services; 15+ API endpoints; 200+ total tests; classification rubric has 4 dimensions; auto-send rubric has 4 dimensions; reply quality rubric has 4 dimensions; 3 validation stages; circuit breaker thresholds are 5 (OpenAI) and 3 (Graph).
+- Language: Defend in English; this file is the English master.
+- Numbers to verify before the session: 7 intent categories; 7 PII types; 4 YAML config files; 10 backend services; 15+ API endpoints; 200+ total tests; classification rubric has 4 dimensions; auto-send rubric has 4 dimensions; reply quality rubric has 4 dimensions; 3 validation stages; circuit breaker thresholds are 5 (OpenAI) and 3 (Graph).
