@@ -18,19 +18,28 @@ from utils.logger import get_logger
 
 logger = get_logger('reply_service')
 
-REPLY_SYSTEM_PROMPT = """You are a professional customer service representative for a logistics and trade company.
+REPLY_SYSTEM_PROMPTS = {
+    'zh': """你是一家物流和贸易公司的专业客服代表。
+根据邮件内容和识别的类别，撰写清晰、礼貌、有帮助的回复邮件。
+保持回复简洁（3-5句话）、专业且富有同理心。
+不要使用占位符如[追踪号] — 承认询问并通用地解释后续步骤。
+用中文回复。""",
+
+    'en': """You are a professional customer service representative for a logistics and trade company.
 Write a clear, polite, and helpful reply email to the customer based on the email content and its identified category.
 Keep the reply concise (3-5 sentences), professional, and empathetic.
 Do NOT use placeholders like [tracking number] — acknowledge the inquiry and explain next steps generically.
-Write in the same language as the customer's email."""
+Write in English."""
+}
 
 
 class ReplyService:
     """Generates reply drafts and orchestrates the full email processing pipeline."""
 
-    def __init__(self):
+    def __init__(self, language: str = 'zh'):
         self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL)
         self.model = Config.OPENAI_MODEL
+        self.language = language  # Store language for prompt and template selection
         self.config_loader = get_config_loader()
         self.scoring_service = get_scoring_service()
         self.validation_service = get_validation_service()
@@ -529,6 +538,164 @@ class ReplyService:
             "+86 123 456 7890"
         )
 
+    # English template methods
+    def _generate_pricing_template_reply_en(self, sender: str, subject: str, body: str, received_at: str) -> str:
+        """English version of pricing inquiry reply."""
+        customer_name = self._extract_sender_local_part(sender)
+        return (
+            f"Dear {customer_name},\n\n"
+            "Thank you for your inquiry. To provide you with an accurate quote, please provide the following information:\n\n"
+            "- Origin city\n"
+            "- Destination city\n"
+            "- Shipping method (sea freight/air freight)\n"
+            "- Cargo weight/volume or container type (e.g., 20ft, 40ft)\n"
+            "- Cargo type\n\n"
+            "Once we receive this information, we will provide you with a professional shipping solution and quote.\n\n"
+            "Best regards,\n"
+            "MIS2001 Dev Ltd.\n"
+            "+86 123 456 7890"
+        )
+
+    def _generate_order_cancellation_template_reply_en(self, sender: str, body: str) -> str:
+        """English version of order cancellation reply."""
+        customer_name = self._extract_sender_local_part(sender)
+        order_number = self._extract_order_number_from_text(body)
+
+        if not order_number:
+            return (
+                f"Dear {customer_name},\n\n"
+                "Thank you for contacting us. To process your cancellation request, please provide the following information:\n\n"
+                "- Order number (format: ORD123456)\n"
+                "- Order date\n\n"
+                "Once we receive your order information, we will process it immediately.\n\n"
+                "Best regards,\n"
+                "MIS2001 Dev Ltd.\n"
+                "+86 123 456 7890"
+            )
+
+        return (
+            f"Dear {customer_name},\n\n"
+            f"Thank you for contacting us. We have received your cancellation request for order {order_number}. "
+            "We will process your refund request as soon as possible. The refund is expected to be completed within seven business days, "
+            "and you will receive a refund notification.\n\n"
+            "We apologize for any inconvenience and thank you for your understanding.\n\n"
+            "Best regards,\n"
+            "MIS2001 Dev Ltd.\n"
+            "+86 123 456 7890"
+        )
+
+    def _generate_order_tracking_template_reply_en(self, sender: str, body: str) -> str:
+        """English version of order tracking reply."""
+        customer_name = self._extract_sender_local_part(sender)
+        order_number = self._extract_order_number_from_text(body)
+
+        if not order_number:
+            return (
+                f"Dear {customer_name},\n\n"
+                "Thank you for contacting us. To check your order status, please provide your order number (format: ORD123456).\n\n"
+                "You can also log in to our website to check your order status or contact our customer service team for assistance.\n\n"
+                "Best regards,\n"
+                "MIS2001 Dev Ltd.\n"
+                "+86 123 456 7890"
+            )
+
+        return (
+            f"Dear {customer_name},\n\n"
+            f"Thank you for your inquiry about order {order_number}. We are currently checking the status of your shipment. "
+            "Our customer service team will contact you within 24 hours with detailed tracking information.\n\n"
+            "If you need further assistance, please feel free to contact us.\n\n"
+            "Best regards,\n"
+            "MIS2001 Dev Ltd.\n"
+            "+86 123 456 7890"
+        )
+
+    def _generate_shipping_time_template_reply_en(self, sender: str, body: str) -> str:
+        """English version of shipping time reply."""
+        customer_name = self._extract_sender_local_part(sender)
+        return (
+            f"Dear {customer_name},\n\n"
+            "Thank you for your inquiry about shipping times. Here are our general shipping time estimates:\n\n"
+            "- Domestic express: 1-3 business days\n"
+            "- International express (Asia): 3-5 business days\n"
+            "- International express (Europe/Americas): 5-7 business days\n"
+            "- Sea freight (Asia): 7-14 days\n"
+            "- Sea freight (Europe/Americas): 20-35 days\n\n"
+            "Actual delivery times may vary based on origin, destination, cargo type, and customs clearance.\n\n"
+            "If you have a specific order to track, please provide your order number for accurate information.\n\n"
+            "Best regards,\n"
+            "MIS2001 Dev Ltd.\n"
+            "+86 123 456 7890"
+        )
+
+    def _generate_shipping_exception_template_reply_en(self, sender: str, body: str) -> str:
+        """English version of shipping exception reply."""
+        customer_name = self._extract_sender_local_part(sender)
+        order_number = self._extract_order_number_from_text(body)
+
+        if not order_number:
+            return (
+                f"Dear {customer_name},\n\n"
+                "Thank you for reporting the shipping issue. We take your concerns very seriously.\n\n"
+                "To expedite resolution, please provide:\n"
+                "- Order number (format: ORD123456)\n"
+                "- Tracking number (if available)\n"
+                "- Description of the issue\n\n"
+                "Once we receive this information, we will address it immediately.\n\n"
+                "Best regards,\n"
+                "MIS2001 Dev Ltd.\n"
+                "+86 123 456 7890"
+            )
+
+        return (
+            f"Dear {customer_name},\n\n"
+            f"Thank you for reporting the issue with order {order_number}. We have noted the shipping exception and will arrange for our team to contact you "
+            "to coordinate a solution. Our customer service team will reach out within 24 hours.\n\n"
+            "We sincerely apologize for any inconvenience and appreciate your understanding.\n\n"
+            "Best regards,\n"
+            "MIS2001 Dev Ltd.\n"
+            "+86 123 456 7890"
+        )
+
+    def _generate_billing_invoice_template_reply_en(self, sender: str, body: str) -> str:
+        """English version of billing/invoice reply."""
+        customer_name = self._extract_sender_local_part(sender)
+        order_number = self._extract_order_number_from_text(body)
+
+        if not order_number:
+            return (
+                f"Dear {customer_name},\n\n"
+                "Thank you for your inquiry. To retrieve your billing and invoice information, please provide:\n\n"
+                "- Order number (format: ORD123456)\n"
+                "- Or the email address used for the order and order date\n\n"
+                "Once we receive this information, we will provide detailed billing and invoice information.\n\n"
+                "Best regards,\n"
+                "MIS2001 Dev Ltd. Finance Department\n"
+                "+86 123 456 7890"
+            )
+
+        return (
+            f"Dear {customer_name},\n\n"
+            f"Thank you for your inquiry about order {order_number}. We are retrieving your billing and invoice information. "
+            "Our finance team will send the detailed information to your email within 2 business days.\n\n"
+            "If you have any questions, please feel free to contact our finance department.\n\n"
+            "Best regards,\n"
+            "MIS2001 Dev Ltd. Finance Department\n"
+            "+86 123 456 7890"
+        )
+
+    def _generate_non_business_template_reply_en(self, sender: str) -> str:
+        """English version of non-business reply."""
+        customer_name = self._extract_sender_local_part(sender)
+        return (
+            f"Dear {customer_name},\n\n"
+            "Thank you for your email. Based on the content, this message does not require a business response. "
+            "If you have any other questions or needs, please feel free to contact us.\n\n"
+            "Thank you for your attention!\n\n"
+            "Best regards,\n"
+            "MIS2001 Dev Ltd.\n"
+            "+86 123 456 7890"
+        )
+
     def generate_reply(
         self,
         sender: str,
@@ -538,27 +705,38 @@ class ReplyService:
         category: str,
         reasoning: str,
     ) -> str:
-        """Generate reply draft based on category policy."""
-        if category in ("pricing_inquiry", "price_inquiry"):
-            return self._generate_pricing_template_reply(sender, subject, body, received_at)
-
-        if category == "order_cancellation":
-            return self._generate_order_cancellation_template_reply(sender, body)
-
-        if category == "order_tracking":
-            return self._generate_order_tracking_template_reply(sender, body)
-
-        if category == "shipping_time":
-            return self._generate_shipping_time_template_reply(sender, body)
-
-        if category == "shipping_exception":
-            return self._generate_shipping_exception_template_reply(sender, body)
-
-        if category == "billing_invoice":
-            return self._generate_billing_invoice_template_reply(sender, body)
-
-        if category == "non_business":
-            return self._generate_non_business_template_reply(sender)
+        """Generate reply draft based on category policy and language."""
+        # Route to language-specific template methods
+        if self.language == 'en':
+            if category in ("pricing_inquiry", "price_inquiry"):
+                return self._generate_pricing_template_reply_en(sender, subject, body, received_at)
+            if category == "order_cancellation":
+                return self._generate_order_cancellation_template_reply_en(sender, body)
+            if category == "order_tracking":
+                return self._generate_order_tracking_template_reply_en(sender, body)
+            if category == "shipping_time":
+                return self._generate_shipping_time_template_reply_en(sender, body)
+            if category == "shipping_exception":
+                return self._generate_shipping_exception_template_reply_en(sender, body)
+            if category == "billing_invoice":
+                return self._generate_billing_invoice_template_reply_en(sender, body)
+            if category == "non_business":
+                return self._generate_non_business_template_reply_en(sender)
+        else:  # Default to Chinese
+            if category in ("pricing_inquiry", "price_inquiry"):
+                return self._generate_pricing_template_reply(sender, subject, body, received_at)
+            if category == "order_cancellation":
+                return self._generate_order_cancellation_template_reply(sender, body)
+            if category == "order_tracking":
+                return self._generate_order_tracking_template_reply(sender, body)
+            if category == "shipping_time":
+                return self._generate_shipping_time_template_reply(sender, body)
+            if category == "shipping_exception":
+                return self._generate_shipping_exception_template_reply(sender, body)
+            if category == "billing_invoice":
+                return self._generate_billing_invoice_template_reply(sender, body)
+            if category == "non_business":
+                return self._generate_non_business_template_reply(sender)
 
         user_content = (
             f"Customer Email Subject: {subject}\n\n"
@@ -567,10 +745,11 @@ class ReplyService:
             f"Classification Reasoning: {reasoning}"
         )
 
+        prompt = REPLY_SYSTEM_PROMPTS.get(self.language, REPLY_SYSTEM_PROMPTS['en'])
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": REPLY_SYSTEM_PROMPT},
+                {"role": "system", "content": prompt},
                 {"role": "user", "content": user_content},
             ],
             temperature=0.4,
@@ -594,6 +773,29 @@ class ReplyService:
         Full pipeline: persist email + reply, decide auto-send or pending_review.
         Returns the saved email record dict.
         """
+        # Detect language early
+        from services.language_service import get_language_service
+        lang_service = get_language_service()
+        full_text = f"{subject or ''}\n{body or ''}"
+        lang_result = lang_service.detect_language(full_text)
+        detected_language = lang_result.get('language', 'unknown')
+        language_confidence = lang_result.get('confidence', 0.0)
+
+        # Map to supported languages (zh/en only)
+        if detected_language == 'zh':
+            language = 'zh'
+        elif detected_language == 'en':
+            language = 'en'
+        elif detected_language == 'mixed':
+            # Use primary language
+            primary = lang_result.get('details', {}).get('primary_language', 'zh')
+            language = 'zh' if primary == 'zh' else 'en'
+        else:
+            language = 'zh'  # Default to Chinese
+
+        # Update self.language for reply generation
+        self.language = language
+
         category = classification["category"]
         confidence = classification["confidence"]
         reasoning = classification.get("reasoning", "")
@@ -603,7 +805,6 @@ class ReplyService:
         pii_detected = False
         pii_types_found = []
         try:
-            full_text = f"{subject or ''}\n{body or ''}"
             pii_result = self.pii_service.detect_pii(full_text)
             if pii_result:
                 pii_detected = True
@@ -624,7 +825,7 @@ class ReplyService:
         validation_result = None
 
         if category == "non_business" or not is_business_related:
-            reply_text = self._generate_non_business_template_reply(sender)
+            reply_text = self.generate_reply(sender, received_at, subject, body, "non_business", reasoning)
             status = "ignored_no_reply"
             auto_send_rubric_scores = None
         else:
@@ -696,8 +897,8 @@ class ReplyService:
                 INSERT INTO emails (message_id, subject, sender, received_at, body,
                                     category, confidence, reasoning, status, retry_count, last_error,
                                     classification_rubric_scores, auto_send_rubric_scores, rubric_version,
-                                    consent_status, pii_detected, pii_types)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    consent_status, pii_detected, pii_types, language, language_confidence)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(message_id) DO UPDATE SET
                     category=excluded.category,
                     confidence=excluded.confidence,
@@ -710,7 +911,9 @@ class ReplyService:
                     rubric_version=excluded.rubric_version,
                     consent_status=excluded.consent_status,
                     pii_detected=excluded.pii_detected,
-                    pii_types=excluded.pii_types
+                    pii_types=excluded.pii_types,
+                    language=excluded.language,
+                    language_confidence=excluded.language_confidence
                 """,
                 (message_id, subject, sender, received_at, body,
                  category, confidence, reasoning, status, retry_count, last_error,
@@ -719,7 +922,9 @@ class ReplyService:
                  'v1.0',
                  consent_status,
                  1 if pii_detected else 0,
-                 json.dumps(pii_types_found) if pii_types_found else None),
+                 json.dumps(pii_types_found) if pii_types_found else None,
+                 language,
+                 language_confidence),
 
             )
             email_row = conn.execute(

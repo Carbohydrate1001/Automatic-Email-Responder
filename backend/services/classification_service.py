@@ -22,29 +22,72 @@ CATEGORY_LABELS_ZH = _config_loader.get_category_labels('zh')
 BUSINESS_HINTS = _config_loader.get_business_hints()
 NON_BUSINESS_HINTS = _config_loader.get_non_business_hints()
 
-BUSINESS_GATE_PROMPT = """You are a gatekeeper for a logistics/trade customer-service mailbox.
+BUSINESS_GATE_PROMPTS = {
+    'zh': """你是物流/贸易客服邮箱的守门员。
+判断收到的邮件是否是与物流/贸易业务相关的真实业务服务请求。
+
+示例：
+
+示例1 - 业务相关（无订单号的退款请求）：
+主题：申请退款
+正文：你好，我想退款，产品不符合预期。
+结果：{"is_business_related": true, "confidence": 0.95, "reasoning": "明确的退款请求，即使没有订单号也是业务相关"}
+
+示例2 - 业务相关（无订单号的追踪查询）：
+主题：订单在哪里
+正文：我的货物到哪里了？
+结果：{"is_business_related": true, "confidence": 0.90, "reasoning": "追踪查询，尽管缺少订单详情仍是业务相关"}
+
+示例3 - 业务相关（一般价格咨询）：
+主题：价格咨询
+正文：你们的运费怎么算？
+结果：{"is_business_related": true, "confidence": 0.95, "reasoning": "物流服务价格咨询"}
+
+示例4 - 非业务（营销邮件）：
+主题：【促销】限时优惠！
+正文：亲爱的用户，我们的产品正在促销，点击链接了解更多...
+结果：{"is_business_related": false, "confidence": 0.98, "reasoning": "营销邮件，不是服务请求"}
+
+示例5 - 非业务（系统通知）：
+主题：Your cloud storage is almost full
+正文：Hi, your OneDrive storage is 95% full. Upgrade now to get more space.
+结果：{"is_business_related": false, "confidence": 0.99, "reasoning": "云存储通知，与物流/贸易无关"}
+
+示例6 - 非业务（个人消息）：
+主题：周末聚餐
+正文：嗨，这周末一起吃饭吗？
+结果：{"is_business_related": false, "confidence": 0.99, "reasoning": "个人消息，非业务相关"}
+
+仅返回有效的JSON：
+{
+  "is_business_related": <true|false>,
+  "confidence": <0.0到1.0之间的浮点数>,
+  "reasoning": "<简短的一句话解释>"
+}""",
+
+    'en': """You are a gatekeeper for a logistics/trade customer-service mailbox.
 Determine whether the incoming email is a real business-service request relevant to logistics/trade operations.
 
 Examples:
 
 Example 1 - Business-related (refund request without order number):
-Subject: 申请退款
-Body: 你好，我想退款，产品不符合预期。
+Subject: Request refund
+Body: Hi, I want a refund, the product doesn't meet expectations.
 Result: {"is_business_related": true, "confidence": 0.95, "reasoning": "Clear refund request, business-related even without order number"}
 
 Example 2 - Business-related (tracking inquiry without order number):
-Subject: 订单在哪里
-Body: 我的货物到哪里了？
+Subject: Where is my order
+Body: Where is my shipment?
 Result: {"is_business_related": true, "confidence": 0.90, "reasoning": "Tracking inquiry, business-related despite missing order details"}
 
 Example 3 - Business-related (general pricing inquiry):
-Subject: 价格咨询
-Body: 你们的运费怎么算？
+Subject: Pricing inquiry
+Body: How do you calculate shipping costs?
 Result: {"is_business_related": true, "confidence": 0.95, "reasoning": "Pricing inquiry for logistics services"}
 
 Example 4 - Non-business (newsletter):
-Subject: 【促销】限时优惠！
-Body: 亲爱的用户，我们的产品正在促销，点击链接了解更多...
+Subject: [Promotion] Limited time offer!
+Body: Dear user, our products are on sale, click the link to learn more...
 Result: {"is_business_related": false, "confidence": 0.98, "reasoning": "Marketing newsletter, not a service request"}
 
 Example 5 - Non-business (system notification):
@@ -53,8 +96,8 @@ Body: Hi, your OneDrive storage is 95% full. Upgrade now to get more space.
 Result: {"is_business_related": false, "confidence": 0.99, "reasoning": "Cloud storage notification, unrelated to logistics/trade"}
 
 Example 6 - Non-business (personal message):
-Subject: 周末聚餐
-Body: 嗨，这周末一起吃饭吗？
+Subject: Weekend dinner
+Body: Hey, want to grab dinner this weekend?
 Result: {"is_business_related": false, "confidence": 0.99, "reasoning": "Personal message, not business-related"}
 
 Respond ONLY with valid JSON:
@@ -63,8 +106,32 @@ Respond ONLY with valid JSON:
   "confidence": <float between 0.0 and 1.0>,
   "reasoning": "<brief one-sentence explanation>"
 }"""
+}
 
-CATEGORY_PROMPT = """You are an expert email classifier for a logistics and trade company's customer service system.
+CATEGORY_PROMPTS = {
+    'zh': """你是物流和贸易公司客服系统的专业邮件分类器。
+将收到的邮件准确分类到以下类别之一：
+- pricing_inquiry: 价格、报价、费率问题
+- order_cancellation: 取消或退款请求
+- order_tracking: 订单状态/物流追踪
+- shipping_time: 运输时长/预计到达时间
+- shipping_exception: 延误、损坏、异常运输事件
+- billing_invoice: 账单、发票、付款问题
+- non_business: 营销邮件、账户/系统通知、内部公告，或与公司物流/贸易业务无关的消息
+
+重要规则：
+1) 如果邮件不是针对本公司的客服业务请求，选择non_business。
+2) 不要将通用的技术/账户/存储/安全消息映射到物流类别。
+3) 只有在证据明确时才使用高置信度（>0.85）。
+
+仅返回有效的JSON：
+{
+  "category": "<上述类别名称之一>",
+  "confidence": <0.0到1.0之间的浮点数>,
+  "reasoning": "<简短的一句话解释>"
+}""",
+
+    'en': """You are an expert email classifier for a logistics and trade company's customer service system.
 Classify the incoming email into exactly one category:
 - pricing_inquiry: pricing, quotation, rate questions
 - order_cancellation: cancellation or refund requests
@@ -85,15 +152,17 @@ Respond ONLY with valid JSON:
   "confidence": <float between 0.0 and 1.0>,
   "reasoning": "<brief one-sentence explanation>"
 }"""
+}
 
 
 
 class ClassificationService:
     """Classifies customer service emails using OpenAI GPT."""
 
-    def __init__(self):
+    def __init__(self, language: str = 'zh'):
         self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL)
         self.model = Config.OPENAI_MODEL
+        self.language = language  # Store language for prompt selection
         self.config_loader = get_config_loader()
         self.scoring_service = get_scoring_service()
         self.business_gate_threshold = self.config_loader.get_global_threshold('business_gate_threshold')
@@ -127,11 +196,12 @@ class ClassificationService:
             circuit_breaker=self.circuit_breaker
         )
         def _call_api():
+            prompt = BUSINESS_GATE_PROMPTS.get(self.language, BUSINESS_GATE_PROMPTS['en'])
             return self.client.chat.completions.create(
                 model=self.model,
                 response_format={"type": "json_object"},
                 messages=[
-                    {"role": "system", "content": BUSINESS_GATE_PROMPT},
+                    {"role": "system", "content": prompt},
                     {"role": "user", "content": user_content},
                 ],
                 temperature=0.0,
@@ -220,11 +290,12 @@ class ClassificationService:
             circuit_breaker=self.circuit_breaker
         )
         def _call_classification_api():
+            prompt = CATEGORY_PROMPTS.get(self.language, CATEGORY_PROMPTS['en'])
             return self.client.chat.completions.create(
                 model=self.model,
                 response_format={"type": "json_object"},
                 messages=[
-                    {"role": "system", "content": CATEGORY_PROMPT},
+                    {"role": "system", "content": prompt},
                     {"role": "user", "content": user_content},
                 ],
                 temperature=0.1,

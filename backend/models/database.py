@@ -116,6 +116,10 @@ def init_db():
         # Create index for query performance
         conn.execute("CREATE INDEX IF NOT EXISTS idx_emails_deleted ON emails(is_deleted)")
 
+        # Language detection columns
+        _ensure_column(conn, "emails", "language", "TEXT DEFAULT 'unknown'")
+        _ensure_column(conn, "emails", "language_confidence", "REAL DEFAULT 0.0")
+
         conn.commit()
 
 

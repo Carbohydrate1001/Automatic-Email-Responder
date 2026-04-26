@@ -194,7 +194,10 @@ export const useEmailStore = defineStore('email', () => {
 
   function setFilter(key: string, value: string | number) {
     (filters.value as Record<string, string | number>)[key] = value
-    filters.value.page = 1
+    // Only reset to page 1 if we're not setting the page itself
+    if (key !== 'page') {
+      filters.value.page = 1
+    }
   }
 
   return {
