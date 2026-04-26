@@ -54,3 +54,6 @@ class Config:
     SEND_RETRY_MAX_ATTEMPTS = int(os.getenv("SEND_RETRY_MAX_ATTEMPTS", "3"))
     SEND_RETRY_DELAY_SECONDS = float(os.getenv("SEND_RETRY_DELAY_SECONDS", "1.0"))
 
+    # Demo mode - prevents database modifications to preserve test data
+    DEMO_MODE = os.getenv("DEMO_MODE", "True").lower() in ("true", "1", "yes")
+

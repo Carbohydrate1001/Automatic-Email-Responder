@@ -1,10 +1,10 @@
 <template>
   <div class="pt-16 min-h-screen bg-slate-100">
-    <div class="max-w-7xl mx-auto px-6 py-6">
+    <div class="max-w-full sm:max-w-[640px] md:max-w-[768px] lg:max-w-[1024px] xl:max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-4 md:px-6 xl:px-8 2xl:px-12 py-6">
       <!-- Breadcrumb -->
       <el-breadcrumb separator="/" class="mb-5">
-        <el-breadcrumb-item :to="{ path: '/emails' }">邮件管理</el-breadcrumb-item>
-        <el-breadcrumb-item>邮件详情</el-breadcrumb-item>
+        <el-breadcrumb-item :to="{ path: '/emails' }">{{ t('emailDetail.breadcrumb') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ t('emailDetail.title') }}</el-breadcrumb-item>
       </el-breadcrumb>
 
       <div v-if="emailStore.loading" class="flex justify-center py-20">
@@ -28,12 +28,12 @@
               </div>
               <StatusBadge :status="email.status" />
             </div>
-            <h3 class="text-lg font-bold text-slate-800 mb-1">{{ email.subject || '(无主题)' }}</h3>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">{{ email.subject || t('emailList.noSubject') }}</h3>
           </div>
 
           <!-- Email body -->
           <div class="card flex-1">
-            <h4 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">原始邮件内容</h4>
+            <h4 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">{{ t('emailDetail.body') }}</h4>
             <div
               class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap bg-slate-50 rounded-lg p-4 min-h-40 max-h-96 overflow-y-auto border border-slate-100"
               v-html="sanitizeBody(email.body)"
@@ -45,7 +45,7 @@
         <div class="lg:col-span-2 flex flex-col gap-5">
           <!-- Classification card -->
           <div class="card">
-            <h4 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">AI 分类结果</h4>
+            <h4 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">{{ t('emailDetail.classification') }}</h4>
 
             <div class="flex items-center gap-4 mb-4">
               <el-progress
@@ -63,31 +63,30 @@
                   :style="`color: ${CATEGORY_COLORS[email.category]}`"
                   class="font-semibold"
                 >
-                  {{ CATEGORY_LABELS[email.category] || email.category }}
+                  {{ categoryLabels[email.category as keyof typeof categoryLabels] || email.category }}
                 </el-tag>
                 <p class="text-xs text-slate-400 mt-2">
-                  {{ email.status === 'ignored_no_reply' ? '✓ 非业务邮件，已自动忽略无需回复' : (email.status === 'send_failed' ? '✕ 发送失败，可编辑后重试' : (email.confidence >= 0.75 ? '✓ 高置信度，已自动处理' : '⚠ 低置信度，需人工审核')) }}
-
+                  {{ getStatusMessage(email.status, email.confidence) }}
                 </p>
               </div>
             </div>
 
             <div v-if="email.reasoning" class="bg-slate-50 rounded-lg p-3 border border-slate-100">
-              <p class="text-xs text-slate-500 font-medium mb-1">分类依据</p>
+              <p class="text-xs text-slate-500 font-medium mb-1">{{ t('emailDetail.reasoning') }}</p>
               <p class="text-sm text-slate-600 leading-relaxed">{{ email.reasoning }}</p>
             </div>
           </div>
 
           <!-- Reply draft card -->
           <div class="card flex-1 flex flex-col">
-            <h4 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">AI 回复草稿</h4>
+            <h4 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">{{ t('emailDetail.reply') }}</h4>
 
             <el-input
               v-model="editableReply"
               type="textarea"
               :autosize="{ minRows: 6, maxRows: 14 }"
               :disabled="email.status === 'auto_sent' || email.status === 'approved' || email.status === 'rejected' || email.status === 'ignored_no_reply'"
-              placeholder="AI 生成的回复草稿..."
+              :placeholder="t('emailDetail.replyPlaceholder')"
               class="mb-4 flex-1"
             />
 
@@ -100,7 +99,7 @@
                 @click="handleApprove"
               >
                 <CheckCircle class="w-4 h-4" />
-                {{ approving ? '发送中...' : '审核通过并发送' }}
+                {{ approving ? t('emailDetail.sending') : t('emailDetail.approveAndSend') }}
               </button>
               <button
                 class="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors cursor-pointer disabled:opacity-60"
@@ -108,14 +107,14 @@
                 @click="handleReject"
               >
                 <XCircle class="w-4 h-4" />
-                {{ rejecting ? '处理中...' : '拒绝' }}
+                {{ rejecting ? t('emailDetail.processing') : t('emailDetail.reject') }}
               </button>
             </div>
 
             <div v-else class="flex items-center gap-2 text-sm py-2">
               <CheckCircle v-if="email.status === 'auto_sent' || email.status === 'approved'" class="w-4 h-4 text-green-500" />
               <XCircle v-else class="w-4 h-4 text-red-400" />
-              <span class="text-slate-500">{{ STATUS_LABELS[email.status] }}</span>
+              <span class="text-slate-500">{{ statusLabels[email.status as keyof typeof statusLabels] }}</span>
               <span v-if="email.sent_at" class="text-slate-400 text-xs ml-auto">{{ formatDate(email.sent_at) }}</span>
             </div>
           </div>
@@ -124,7 +123,7 @@
 
       <div v-else class="text-center py-20 text-slate-400">
         <Mail class="w-12 h-12 mx-auto mb-3 opacity-30" />
-        <p>邮件不存在</p>
+        <p>{{ t('emailDetail.emailNotFound') }}</p>
       </div>
     </div>
   </div>
@@ -136,7 +135,12 @@ import { useRoute } from 'vue-router'
 import { CheckCircle, XCircle, Mail } from 'lucide-vue-next'
 import { useEmailStore } from '../stores/email'
 import StatusBadge from '../components/StatusBadge.vue'
-import { CATEGORY_LABELS, CATEGORY_COLORS, STATUS_LABELS } from '../types/index'
+import { CATEGORY_COLORS } from '../types/index'
+import { useI18n } from 'vue-i18n'
+import { useTranslatedLabels } from '../composables/useTranslatedLabels'
+
+const { t } = useI18n()
+const { categoryLabels, statusLabels } = useTranslatedLabels()
 
 const route = useRoute()
 const emailStore = useEmailStore()
@@ -153,7 +157,20 @@ function formatDate(dateStr: string) {
 
 function sanitizeBody(body: string) {
   // Strip HTML tags to plain text preview
-  return body?.replace(/<[^>]*>/g, '') || '(无内容)'
+  return body?.replace(/<[^>]*>/g, '') || t('emailDetail.noContent')
+}
+
+function getStatusMessage(status: string, confidence: number) {
+  if (status === 'ignored_no_reply') {
+    return t('emailDetail.ignoredNonBusiness')
+  }
+  if (status === 'send_failed') {
+    return t('emailDetail.sendFailed')
+  }
+  if (confidence >= 0.75) {
+    return t('emailDetail.highConfidence')
+  }
+  return t('emailDetail.lowConfidence')
 }
 
 async function handleApprove() {

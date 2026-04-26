@@ -25,14 +25,44 @@ NON_BUSINESS_HINTS = _config_loader.get_non_business_hints()
 BUSINESS_GATE_PROMPT = """You are a gatekeeper for a logistics/trade customer-service mailbox.
 Determine whether the incoming email is a real business-service request relevant to logistics/trade operations.
 
+Examples:
+
+Example 1 - Business-related (refund request without order number):
+Subject: 申请退款
+Body: 你好，我想退款，产品不符合预期。
+Result: {"is_business_related": true, "confidence": 0.95, "reasoning": "Clear refund request, business-related even without order number"}
+
+Example 2 - Business-related (tracking inquiry without order number):
+Subject: 订单在哪里
+Body: 我的货物到哪里了？
+Result: {"is_business_related": true, "confidence": 0.90, "reasoning": "Tracking inquiry, business-related despite missing order details"}
+
+Example 3 - Business-related (general pricing inquiry):
+Subject: 价格咨询
+Body: 你们的运费怎么算？
+Result: {"is_business_related": true, "confidence": 0.95, "reasoning": "Pricing inquiry for logistics services"}
+
+Example 4 - Non-business (newsletter):
+Subject: 【促销】限时优惠！
+Body: 亲爱的用户，我们的产品正在促销，点击链接了解更多...
+Result: {"is_business_related": false, "confidence": 0.98, "reasoning": "Marketing newsletter, not a service request"}
+
+Example 5 - Non-business (system notification):
+Subject: Your cloud storage is almost full
+Body: Hi, your OneDrive storage is 95% full. Upgrade now to get more space.
+Result: {"is_business_related": false, "confidence": 0.99, "reasoning": "Cloud storage notification, unrelated to logistics/trade"}
+
+Example 6 - Non-business (personal message):
+Subject: 周末聚餐
+Body: 嗨，这周末一起吃饭吗？
+Result: {"is_business_related": false, "confidence": 0.99, "reasoning": "Personal message, not business-related"}
+
 Respond ONLY with valid JSON:
 {
   "is_business_related": <true|false>,
   "confidence": <float between 0.0 and 1.0>,
   "reasoning": "<brief one-sentence explanation>"
-}
-
-Set is_business_related=false for newsletters, account/system notifications, promotions, cloud storage tips, security reminders, and other non-service content."""
+}"""
 
 CATEGORY_PROMPT = """You are an expert email classifier for a logistics and trade company's customer service system.
 Classify the incoming email into exactly one category:

@@ -11,8 +11,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { STATUS_LABELS } from '../types/index'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const props = defineProps<{ status: string }>()
 
 const tagType = computed(() => {
@@ -43,5 +44,5 @@ const tagColor = computed(() => {
   return map[props.status] || '#f1f5f9'
 })
 
-const label = computed(() => STATUS_LABELS[props.status] || props.status)
+const label = computed(() => t(`status.${props.status}`, props.status))
 </script>

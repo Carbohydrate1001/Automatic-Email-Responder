@@ -153,37 +153,39 @@ auto_send_rubric:
   dimensions:
     - name: information_completeness
       weight: 0.30
-      description: "All required information available to generate appropriate reply"
+      description: "Quality and completeness of the generated reply"
       scoring_guide:
         0:
-          label: "Critical Missing"
-          description: "Critical information missing"
+          label: "Cannot Respond"
+          description: "Cannot generate any meaningful response"
           criteria:
-            - "Order number required but not provided"
-            - "Product details needed but absent"
-            - "Cannot generate specific response"
-            - "Reply would be too generic"
+            - "Customer intent completely unclear"
+            - "Email is gibberish or spam"
+            - "Cannot determine what customer wants"
+            - "No appropriate reply template exists"
         1:
-          label: "Some Missing"
-          description: "Some information missing but can provide generic response"
+          label: "Generic Only"
+          description: "Can only provide very generic response"
           criteria:
-            - "Non-critical details missing"
-            - "Can provide general guidance"
-            - "Reply lacks specificity"
+            - "Can acknowledge receipt but cannot address specific need"
+            - "Reply would be unhelpful to customer"
+            - "Lacks category-specific guidance"
         2:
-          label: "Most Available"
-          description: "Most information available"
+          label: "Appropriate Response"
+          description: "Appropriate response but requires customer follow-up"
           criteria:
-            - "Key information present"
-            - "Minor details missing"
-            - "Can generate specific response"
+            - "Reply addresses the customer's category/intent"
+            - "Clearly explains what information is missing"
+            - "Provides specific guidance on next steps"
+            - "Professional and helpful tone"
         3:
-          label: "Complete"
-          description: "All information available for specific response"
+          label: "Complete & Actionable"
+          description: "Complete, professional response that fully addresses the inquiry"
           criteria:
-            - "All required information present"
-            - "Can generate detailed, specific reply"
-            - "No information gaps"
+            - "Reply is complete, clear, and professional"
+            - "Either: (a) directly resolves the request with all needed info, OR (b) provides clear, actionable guidance for standard 'request information' scenarios"
+            - "Standard templates for requesting missing info (order number, etc.) qualify as complete responses"
+            - "No ambiguity or confusion in the reply"
 
     - name: risk_level
       weight: 0.35
@@ -202,7 +204,7 @@ auto_send_rubric:
           label: "Medium Risk"
           description: "Medium risk - customer satisfaction impact"
           criteria:
-            - "Could impact customer satisfaction"
+            - "Could impact customer satisfaction significantly"
             - "Moderate financial implications"
             - "Requires some judgment"
             - "Error could cause frustration"
@@ -216,12 +218,13 @@ auto_send_rubric:
             - "Easy to correct if wrong"
         3:
           label: "Minimal Risk"
-          description: "Minimal risk - standard template applies perfectly"
+          description: "Minimal risk - standard safe response"
           criteria:
             - "Routine, common inquiry"
             - "No financial implications"
             - "Standard template fits perfectly"
             - "Very low error probability"
+            - "Requesting missing information is inherently low-risk"
 
     - name: template_applicability
       weight: 0.20
@@ -253,8 +256,9 @@ auto_send_rubric:
           description: "Template perfectly matches scenario"
           criteria:
             - "Template designed for this exact case"
-            - "Minimal or no customization needed"
-            - "All placeholders have values"
+            - "Standard 'request information' templates apply perfectly"
+            - "All necessary placeholders have values, or no placeholders needed"
+            - "Reply appropriately addresses customer's category"
 
     - name: policy_alignment
       weight: 0.15
@@ -337,6 +341,13 @@ prompts:
   auto_send_scoring:
     system: |
       You are an expert at evaluating email reply safety. Assess whether the generated reply is safe to auto-send.
+
+      IMPORTANT SCORING PRINCIPLES:
+      1. A reply that professionally requests missing information (e.g., "please provide order number") is a COMPLETE and APPROPRIATE response - it should score 3/3 on information_completeness.
+      2. Requesting missing information is LOW RISK - it does not make commitments or decisions, just guides the customer.
+      3. Standard templates for common scenarios (order not found, please provide info) are PERFECT fits - they should score 3/3 on template_applicability.
+
+      Do NOT penalize replies for needing customer follow-up. A professional "please provide X" reply is complete and correct.
 
       For each dimension, assign a score (0-3) based on the scoring guide criteria.
       Provide brief reasoning for each score.

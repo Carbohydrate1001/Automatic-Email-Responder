@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intent Classification Flow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+            font-size: 13px;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+            border-bottom: 3px solid #FF5722;
+            padding-bottom: 10px;
+        }
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .category-card {
+            background: #E3F2FD;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+        }
+        .category-card.non-business {
+            background: #ECEFF1;
+            border-left-color: #607D8B;
+        }
+        .category-name {
+            font-weight: bold;
+            font-size: 14px;
+            color: #1976D2;
+            margin-bottom: 5px;
+        }
+        .category-label {
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .category-keywords {
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
+        }
+        .flow-step {
+            background: #f9f9f9;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .flow-step::after {
+            content: '↓';
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            color: #FF5722;
+        }
+        .flow-step:last-child::after {
+            content: '';
+        }
+        .step-number {
+            background: #FF5722;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .step-title {
+            font-weight: bold;
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .step-desc {
+            color: #666;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .step-details {
+            background: white;
+            padding: 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #555;
+        }
+        .decision-box {
+            background: #FFF3E0;
+            border: 2px solid #FF9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .decision-title {
+            font-weight: bold;
+            color: #E65100;
+            margin-bottom: 10px;
+        }
+        .decision-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .option {
+            padding: 10px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .option.yes {
+            background: #C8E6C9;
+            border: 2px solid #4CAF50;
+        }
+        .option.no {
+            background: #FFCDD2;
+            border: 2px solid #F44336;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 12px;
+        }
+        th {
+            background: #333;
+            color: white;
+            padding: 10px;
+            text-align: left;
+        }
+        td {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .info-box {
+            background: #E8F5E9;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        h2 {
+            background: #FF5722;
+            color: white;
+            padding: 10px 15px;
+            margin: 30px 0 20px 0;
+            font-size: 18px;
+        }
+        @media print {
+            body { background: white; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Intent Classification Flow</h1>
+
+        <div class="grid-2col">
+            <div>
+                <h2>Business Categories</h2>
+                <div class="categories">
+                    <div class="category-card">
+                        <div class="category-name">💰 pricing_inquiry</div>
+                        <div class="category-label">Pricing & Quotation</div>
+                        <div class="category-keywords">price, quotation, rate, cost, how much</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="category-name">❌ order_cancellation</div>
+                        <div class="category-label">Order Cancellation & Refund</div>
+                        <div class="category-keywords">cancel, refund, return, chargeback</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="category-name">📍 order_tracking</div>
+                        <div class="category-label">Order Tracking</div>
+                        <div class="category-keywords">order, tracking, status, where is my</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="category-name">⏱️ shipping_time</div>
+                        <div class="category-label">Shipping Time & ETA</div>
+                        <div class="category-keywords">how long, ETA, delivery time, when</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="category-name">⚠️ shipping_exception</div>
+                        <div class="category-label">Shipping Exception</div>
+                        <div class="category-keywords">delay, damage, lost, exception, problem</div>
+                    </div>
+                    <div class="category-card">
+                        <div class="category-name">🧾 billing_invoice</div>
+                        <div class="category-label">Billing & Invoice</div>
+                        <div class="category-keywords">invoice, billing, payment, receipt</div>
+                    </div>
+                    <div class="category-card non-business">
+                        <div class="category-name">🚫 non_business</div>
+                        <div class="category-label">Non-Business Email</div>
+                        <div class="category-keywords">newsletter, notification, marketing, spam</div>
+                    </div>
+                </div>
+
+                <h2>Model Configuration</h2>
+                <table>
+                    <tr>
+                        <th style="width: 40%">Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Model</strong></td>
+                        <td>GPT-4o-mini (OpenAI)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Response Format</strong></td>
+                        <td>JSON Object</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Temperature</strong></td>
+                        <td>0.0 (Business Gate) / 0.1 (Category)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Max Retries</strong></td>
+                        <td>3 attempts with exponential backoff</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Circuit Breaker</strong></td>
+                        <td>5 failures → 60s recovery timeout</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Business Gate Threshold</strong></td>
+                        <td>≥ 0.85 confidence</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Fallback Strategy</strong></td>
+                        <td>Rule-based classification on API failure</td>
+                    </tr>
+                </table>
+
+                <h2>Confidence Interpretation</h2>
+                <table>
+                    <tr>
+                        <th style="width: 30%">Range</th>
+                        <th style="width: 30%">Level</th>
+                        <th>Action</th>
+                    </tr>
+                    <tr>
+                        <td><strong>0.0 - 0.5</strong></td>
+                        <td>Low Confidence</td>
+                        <td>Requires manual review</td>
+                    </tr>
+                    <tr>
+                        <td><strong>0.5 - 0.75</strong></td>
+                        <td>Medium Confidence</td>
+                        <td>Manual review recommended</td>
+                    </tr>
+                    <tr>
+                        <td><strong>0.75 - 0.90</strong></td>
+                        <td>High Confidence</td>
+                        <td>Consider auto-processing</td>
+                    </tr>
+                    <tr>
+                        <td><strong>0.90 - 1.0</strong></td>
+                        <td>Very High Confidence</td>
+                        <td>Suitable for auto-processing</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div>
+                <h2>Classification Process</h2>
+
+                <div class="flow-step">
+                    <div class="step-title">
+                        <span class="step-number">1</span>
+                        📧 Email Received
+                    </div>
+                    <div class="step-desc">System receives new email, extracts subject and body</div>
+                    <div class="step-details">
+                        <strong>Input:</strong> subject, body, sender, received_at<br>
+                        <strong>Source:</strong> Microsoft Graph API (Inbox)
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-title">
+                        <span class="step-number">2</span>
+                        🔍 Rule-Based Pre-Filter
+                    </div>
+                    <div class="step-desc">Fast rule check: contains non-business keywords (no API call)</div>
+                    <div class="step-details">
+                        <strong>Non-business hints:</strong> promotion, limited offer, newsletter, storage full<br>
+                        <strong>Business hints:</strong> order, logistics, refund, invoice, tracking
+                    </div>
+                </div>
+
+                <div class="decision-box">
+                    <div class="decision-title">❓ Has non-business keywords AND no business keywords?</div>
+                    <div class="decision-options">
+                        <div class="option yes">
+                            <strong>✅ YES</strong><br>
+                            Category: non_business<br>
+                            Confidence: 0.98<br>
+                            Skip API calls
+                        </div>
+                        <div class="option no">
+                            <strong>❌ NO</strong><br>
+                            Continue to<br>
+                            Business Gate
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-title">
+                        <span class="step-number">3</span>
+                        🚪 Business Gate Check (LLM)
+                    </div>
+                    <div class="step-desc">Use GPT-4o-mini to determine if email is a real business service request</div>
+                    <div class="step-details">
+                        <strong>Prompt:</strong> BUSINESS_GATE_PROMPT<br>
+                        <strong>Output:</strong> {is_business_related, confidence, reasoning}<br>
+                        <strong>Retry:</strong> Max 3 retries with circuit breaker
+                    </div>
+                </div>
+
+                <div class="decision-box">
+                    <div class="decision-title">❓ is_business_related = false AND confidence ≥ 0.85?</div>
+                    <div class="decision-options">
+                        <div class="option yes">
+                            <strong>✅ YES</strong><br>
+                            Category: non_business<br>
+                            Use gate confidence<br>
+                            End classification
+                        </div>
+                        <div class="option no">
+                            <strong>❌ NO</strong><br>
+                            Continue to<br>
+                            Category Classification
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-title">
+                        <span class="step-number">4</span>
+                        🎯 Category Classification (LLM)
+                    </div>
+                    <div class="step-desc">Use GPT-4o-mini to classify email into specific business category</div>
+                    <div class="step-details">
+                        <strong>Prompt:</strong> CATEGORY_PROMPT<br>
+                        <strong>Output:</strong> {category, confidence, reasoning}<br>
+                        <strong>Temperature:</strong> 0.1 (deterministic)
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-title">
+                        <span class="step-number">5</span>
+                        📊 Rubric-Based Scoring (Optional)
+                    </div>
+                    <div class="step-desc">Use structured scoring criteria to assess classification quality, provide explainable confidence</div>
+                    <div class="step-details">
+                        <strong>Dimensions:</strong> keyword_match (25%), intent_clarity (30%), context_completeness (25%), exclusion_confidence (20%)<br>
+                        <strong>Formula:</strong> confidence = weighted_score / 3.0<br>
+                        <strong>Fallback:</strong> Use original LLM confidence if rubric fails
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-title">
+                        <span class="step-number">6</span>
+                        💾 Save to Database
+                    </div>
+                    <div class="step-desc">Save classification result to database, including category, confidence, reasoning, and scoring details</div>
+                    <div class="step-details">
+                        <strong>Table:</strong> emails<br>
+                        <strong>Fields:</strong> category, confidence, reasoning, classification_rubric_scores (JSON)<br>
+                        <strong>Status:</strong> Initially set to 'pending_review'
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <strong>Key Features:</strong>
+            ① Three-layer filtering mechanism (rule → business gate → category classification) reduces API calls |
+            ② Retry mechanism and circuit breaker ensure system stability |
+            ③ Rubric scoring provides explainable confidence |
+            ④ Fallback strategy ensures system works even when API fails
+        </div>
+    </div>
+</body>
+</html>

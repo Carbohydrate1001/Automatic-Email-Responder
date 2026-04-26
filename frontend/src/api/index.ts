@@ -46,6 +46,23 @@ export const emailApi = {
 
   rejectEmail: (id: number) => api.post(`/api/emails/${id}/reject`),
 
+  deleteEmail: (id: number) => api.delete(`/api/emails/${id}`),
+
+  bulkDeleteEmails: (emailIds: number[]) =>
+    api.post('/api/emails/bulk-delete', { email_ids: emailIds }),
+
+  bulkApproveEmails: (emailIds: number[]) =>
+    api.post('/api/emails/bulk-approve', { email_ids: emailIds }),
+
+  bulkRejectEmails: (emailIds: number[]) =>
+    api.post('/api/emails/bulk-reject', { email_ids: emailIds }),
+
+  exportEmails: (params: {
+    status?: string
+    category?: string
+    search?: string
+  }) => api.get('/api/emails/export', { params, responseType: 'blob' }),
+
   getStats: () => api.get('/api/stats'),
 }
 

@@ -157,7 +157,7 @@ def list_emails():
 
     offset = (page - 1) * per_page
 
-    where_clauses = []
+    where_clauses = ["e.is_deleted = 0"]
     params = []
 
     if status_filter:
@@ -412,3 +412,245 @@ def get_stats():
         "categories": [dict(r) for r in category_rows],
         "daily": [dict(r) for r in daily_rows],
     })
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/emails/<id>  – Soft delete a single email
+# ---------------------------------------------------------------------------
+@email_bp.route("/emails/<int:email_id>", methods=["DELETE"])
+def delete_email(email_id):
+    """Soft delete a single email."""
+    token, operator = _require_auth()
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    with get_db_connection() as conn:
+        row = conn.execute(
+            "SELECT id, subject FROM emails WHERE id = ? AND is_deleted = 0",
+            (email_id,)
+        ).fetchone()
+
+        if not row:
+            return jsonify({"error": "Email not found or already deleted"}), 404
+
+        # Soft delete
+        conn.execute(
+            """UPDATE emails
+               SET is_deleted = 1, deleted_at = datetime('now'), deleted_by = ?
+               WHERE id = ?""",
+            (operator, email_id)
+        )
+        conn.execute(
+            "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'deleted', ?)",
+            (email_id, operator)
+        )
+        conn.commit()
+
+    return jsonify({"success": True, "message": "Email deleted successfully"})
+
+
+# ---------------------------------------------------------------------------
+# POST /api/emails/bulk-delete  – Soft delete multiple emails
+# ---------------------------------------------------------------------------
+@email_bp.route("/emails/bulk-delete", methods=["POST"])
+def bulk_delete_emails():
+    """Soft delete multiple emails."""
+    token, operator = _require_auth()
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if not request.is_json:
+        return jsonify({"error": "JSON body required"}), 400
+
+    email_ids = request.json.get("email_ids", [])
+    if not email_ids or not isinstance(email_ids, list):
+        return jsonify({"error": "email_ids array required"}), 400
+
+    with get_db_connection() as conn:
+        placeholders = ",".join("?" * len(email_ids))
+        conn.execute(
+            f"""UPDATE emails
+                SET is_deleted = 1, deleted_at = datetime('now'), deleted_by = ?
+                WHERE id IN ({placeholders}) AND is_deleted = 0""",
+            [operator] + email_ids
+        )
+
+        # Log each deletion
+        for email_id in email_ids:
+            conn.execute(
+                "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'bulk_deleted', ?)",
+                (email_id, operator)
+            )
+        conn.commit()
+
+    return jsonify({"success": True, "deleted_count": len(email_ids)})
+
+
+# ---------------------------------------------------------------------------
+# POST /api/emails/bulk-approve  – Approve and send multiple emails
+# ---------------------------------------------------------------------------
+@email_bp.route("/emails/bulk-approve", methods=["POST"])
+def bulk_approve_emails():
+    """Approve and send multiple emails."""
+    token, operator = _require_auth()
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    email_ids = request.json.get("email_ids", [])
+    if not email_ids:
+        return jsonify({"error": "email_ids required"}), 400
+
+    graph = GraphService(token)
+    success_count = 0
+    failed_ids = []
+
+    with get_db_connection() as conn:
+        for email_id in email_ids:
+            row = conn.execute(
+                """SELECT e.*, r.reply_text
+                   FROM emails e
+                   LEFT JOIN replies r ON r.email_id = e.id
+                   WHERE e.id = ? AND e.status IN ('pending_review', 'send_failed')
+                   AND e.is_deleted = 0""",
+                (email_id,)
+            ).fetchone()
+
+            if not row:
+                failed_ids.append(email_id)
+                continue
+
+            try:
+                graph.send_reply(row["message_id"], row["reply_text"])
+                graph.mark_as_read(row["message_id"])
+                sent_at = datetime.now(timezone.utc).isoformat()
+
+                conn.execute(
+                    "UPDATE emails SET status = 'approved' WHERE id = ?",
+                    (email_id,)
+                )
+                conn.execute(
+                    "UPDATE replies SET sent_at = ? WHERE email_id = ?",
+                    (sent_at, email_id)
+                )
+                conn.execute(
+                    "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'bulk_approved', ?)",
+                    (email_id, operator)
+                )
+                success_count += 1
+            except Exception as e:
+                failed_ids.append(email_id)
+                conn.execute(
+                    "UPDATE emails SET status = 'send_failed', last_error = ? WHERE id = ?",
+                    (str(e), email_id)
+                )
+
+        conn.commit()
+
+    return jsonify({
+        "success": True,
+        "approved_count": success_count,
+        "failed_count": len(failed_ids),
+        "failed_ids": failed_ids
+    })
+
+
+# ---------------------------------------------------------------------------
+# POST /api/emails/bulk-reject  – Reject multiple emails
+# ---------------------------------------------------------------------------
+@email_bp.route("/emails/bulk-reject", methods=["POST"])
+def bulk_reject_emails():
+    """Reject multiple emails."""
+    token, operator = _require_auth()
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    email_ids = request.json.get("email_ids", [])
+    if not email_ids:
+        return jsonify({"error": "email_ids required"}), 400
+
+    with get_db_connection() as conn:
+        placeholders = ",".join("?" * len(email_ids))
+        conn.execute(
+            f"""UPDATE emails
+                SET status = 'rejected'
+                WHERE id IN ({placeholders})
+                AND status IN ('pending_review', 'send_failed')
+                AND is_deleted = 0""",
+            email_ids
+        )
+
+        for email_id in email_ids:
+            conn.execute(
+                "INSERT INTO audit_log (email_id, action, operator) VALUES (?, 'bulk_rejected', ?)",
+                (email_id, operator)
+            )
+        conn.commit()
+
+    return jsonify({"success": True, "rejected_count": len(email_ids)})
+
+
+# ---------------------------------------------------------------------------
+# GET /api/emails/export  – Export emails as CSV
+# ---------------------------------------------------------------------------
+@email_bp.route("/emails/export", methods=["GET"])
+def export_emails():
+    """Export emails as CSV."""
+    token, _ = _require_auth()
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    # Use same filters as list_emails
+    status_filter = request.args.get("status")
+    category_filter = request.args.get("category")
+    search = request.args.get("search", "").strip()
+
+    where_clauses = ["e.is_deleted = 0"]
+    params = []
+
+    if status_filter:
+        where_clauses.append("e.status = ?")
+        params.append(status_filter)
+    if category_filter:
+        where_clauses.append("e.category = ?")
+        params.append(category_filter)
+    if search:
+        where_clauses.append("(e.subject LIKE ? OR e.sender LIKE ?)")
+        params += [f"%{search}%", f"%{search}%"]
+
+    where_sql = "WHERE " + " AND ".join(where_clauses)
+
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            f"""SELECT e.id, e.subject, e.sender, e.received_at, e.category,
+                       e.confidence, e.status, e.created_at, r.reply_text, r.sent_at
+                FROM emails e
+                LEFT JOIN replies r ON r.email_id = e.id
+                {where_sql}
+                ORDER BY e.created_at DESC
+                LIMIT 10000""",
+            params
+        ).fetchall()
+
+    # Generate CSV
+    import csv
+    from io import StringIO
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'Subject', 'Sender', 'Received At', 'Category',
+                     'Confidence', 'Status', 'Reply Text', 'Sent At', 'Created At'])
+
+    for row in rows:
+        writer.writerow([
+            row['id'], row['subject'], row['sender'], row['received_at'],
+            row['category'], row['confidence'], row['status'],
+            row['reply_text'], row['sent_at'], row['created_at']
+        ])
+
+    from flask import Response
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=emails_export.csv'}
+    )
+

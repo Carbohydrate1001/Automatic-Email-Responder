@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Schema</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+            font-size: 13px;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+            border-bottom: 3px solid #2196F3;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            font-size: 12px;
+        }
+        th {
+            background: #333;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-weight: bold;
+        }
+        td {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .table-name {
+            background: #2196F3;
+            color: white;
+            padding: 12px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 30px 0 0 0;
+        }
+        .pk {
+            background: #FFC107;
+            color: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .fk {
+            background: #4CAF50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .idx {
+            background: #FF5722;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .unique {
+            background: #9C27B0;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .type {
+            font-family: monospace;
+            color: #666;
+            font-weight: bold;
+        }
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        .relationships {
+            background: #FFF3E0;
+            border-left: 4px solid #FF9800;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .relationships h2 {
+            margin: 0 0 15px 0;
+            color: #E65100;
+        }
+        .rel-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #FFE0B2;
+            font-weight: bold;
+        }
+        .rel-item:last-child {
+            border-bottom: none;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-box {
+            background: #E3F2FD;
+            padding: 15px;
+            text-align: center;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1976D2;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        @media print {
+            body { background: white; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗄️ Database Schema</h1>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number">5</div>
+                <div class="stat-label">Tables</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">4</div>
+                <div class="stat-label">Indexes</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">3</div>
+                <div class="stat-label">Foreign Keys</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">SQLite</div>
+                <div class="stat-label">Engine</div>
+            </div>
+        </div>
+
+        <div class="grid-2col">
+            <div>
+                <!-- Emails Table -->
+                <div class="table-name">📧 emails</div>
+                <table>
+                    <tr>
+                        <th style="width: 30%">Column</th>
+                        <th style="width: 25%">Type</th>
+                        <th style="width: 15%">Key</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><strong>id</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td><span class="pk">PK</span></td>
+                        <td>Primary key, auto-increment</td>
+                    </tr>
+                    <tr>
+                        <td><strong>message_id</strong></td>
+                        <td class="type">TEXT</td>
+                        <td><span class="unique">UNIQUE</span></td>
+                        <td>Email unique identifier</td>
+                    </tr>
+                    <tr>
+                        <td><strong>subject</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Email subject</td>
+                    </tr>
+                    <tr>
+                        <td><strong>sender</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Sender email address</td>
+                    </tr>
+                    <tr>
+                        <td><strong>received_at</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Received timestamp</td>
+                    </tr>
+                    <tr>
+                        <td><strong>body</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Email body content</td>
+                    </tr>
+                    <tr>
+                        <td><strong>category</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Classification result</td>
+                    </tr>
+                    <tr>
+                        <td><strong>confidence</strong></td>
+                        <td class="type">REAL</td>
+                        <td>-</td>
+                        <td>Classification confidence (0.0-1.0)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>reasoning</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Classification reasoning</td>
+                    </tr>
+                    <tr>
+                        <td><strong>status</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Processing status (pending_review/auto_sent)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>classification_rubric_scores</strong></td>
+                        <td class="type">TEXT (JSON)</td>
+                        <td>-</td>
+                        <td>Classification scoring details</td>
+                    </tr>
+                    <tr>
+                        <td><strong>auto_send_rubric_scores</strong></td>
+                        <td class="type">TEXT (JSON)</td>
+                        <td>-</td>
+                        <td>Auto-send scoring details</td>
+                    </tr>
+                    <tr>
+                        <td><strong>pii_detected</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td>-</td>
+                        <td>PII detection flag (0/1)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>retry_count</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td>-</td>
+                        <td>Retry attempts count</td>
+                    </tr>
+                    <tr>
+                        <td><strong>created_at</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Creation timestamp</td>
+                    </tr>
+                </table>
+
+                <!-- Orders Table -->
+                <div class="table-name">📦 orders</div>
+                <table>
+                    <tr>
+                        <th style="width: 30%">Column</th>
+                        <th style="width: 25%">Type</th>
+                        <th style="width: 15%">Key</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><strong>id</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td><span class="pk">PK</span></td>
+                        <td>Primary key, auto-increment</td>
+                    </tr>
+                    <tr>
+                        <td><strong>order_number</strong></td>
+                        <td class="type">TEXT</td>
+                        <td><span class="unique">UNIQUE</span> <span class="idx">IDX</span></td>
+                        <td>Order number (ORD123456)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>customer_email</strong></td>
+                        <td class="type">TEXT</td>
+                        <td><span class="idx">IDX</span></td>
+                        <td>Customer email address</td>
+                    </tr>
+                    <tr>
+                        <td><strong>product_name</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Product name</td>
+                    </tr>
+                    <tr>
+                        <td><strong>quantity</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td>-</td>
+                        <td>Order quantity</td>
+                    </tr>
+                    <tr>
+                        <td><strong>total_amount</strong></td>
+                        <td class="type">REAL</td>
+                        <td>-</td>
+                        <td>Total amount</td>
+                    </tr>
+                    <tr>
+                        <td><strong>currency</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Currency (CNY/USD)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>order_status</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Order status (pending/confirmed/cancelled)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>shipping_status</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Shipping status (not_shipped/in_transit/delivered)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>tracking_number</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Tracking number</td>
+                    </tr>
+                    <tr>
+                        <td><strong>destination</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Destination address</td>
+                    </tr>
+                    <tr>
+                        <td><strong>created_at</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Creation timestamp</td>
+                    </tr>
+                </table>
+
+                <!-- Audit Log Table -->
+                <div class="table-name">📝 audit_log</div>
+                <table>
+                    <tr>
+                        <th style="width: 30%">Column</th>
+                        <th style="width: 25%">Type</th>
+                        <th style="width: 15%">Key</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><strong>id</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td><span class="pk">PK</span></td>
+                        <td>Primary key, auto-increment</td>
+                    </tr>
+                    <tr>
+                        <td><strong>email_id</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td><span class="fk">FK</span></td>
+                        <td>Related email ID → emails(id)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>action</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Action type</td>
+                    </tr>
+                    <tr>
+                        <td><strong>operator</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Operator name</td>
+                    </tr>
+                    <tr>
+                        <td><strong>created_at</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Action timestamp</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div>
+                <!-- Replies Table -->
+                <div class="table-name">💬 replies</div>
+                <table>
+                    <tr>
+                        <th style="width: 30%">Column</th>
+                        <th style="width: 25%">Type</th>
+                        <th style="width: 15%">Key</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><strong>id</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td><span class="pk">PK</span></td>
+                        <td>Primary key, auto-increment</td>
+                    </tr>
+                    <tr>
+                        <td><strong>email_id</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td><span class="fk">FK</span></td>
+                        <td>Related email ID → emails(id)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>reply_text</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Reply content</td>
+                    </tr>
+                    <tr>
+                        <td><strong>sent_at</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Sent timestamp</td>
+                    </tr>
+                    <tr>
+                        <td><strong>reply_validation_scores</strong></td>
+                        <td class="type">TEXT (JSON)</td>
+                        <td>-</td>
+                        <td>Reply quality validation scores</td>
+                    </tr>
+                    <tr>
+                        <td><strong>validation_passed</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td>-</td>
+                        <td>Validation passed flag (0/1)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>created_at</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Creation timestamp</td>
+                    </tr>
+                </table>
+
+                <!-- Logistics Routes Table -->
+                <div class="table-name">🚢 logistics_routes</div>
+                <table>
+                    <tr>
+                        <th style="width: 30%">Column</th>
+                        <th style="width: 25%">Type</th>
+                        <th style="width: 15%">Key</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><strong>id</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td><span class="pk">PK</span></td>
+                        <td>Primary key, auto-increment</td>
+                    </tr>
+                    <tr>
+                        <td><strong>origin</strong></td>
+                        <td class="type">TEXT</td>
+                        <td><span class="idx">IDX</span></td>
+                        <td>Origin city</td>
+                    </tr>
+                    <tr>
+                        <td><strong>destination</strong></td>
+                        <td class="type">TEXT</td>
+                        <td><span class="idx">IDX</span></td>
+                        <td>Destination city</td>
+                    </tr>
+                    <tr>
+                        <td><strong>shipping_method</strong></td>
+                        <td class="type">TEXT</td>
+                        <td><span class="idx">IDX</span></td>
+                        <td>Shipping method (sea_freight/air_freight)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>container_type</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Container type (20ft/40ft) - sea freight</td>
+                    </tr>
+                    <tr>
+                        <td><strong>weight_range</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Weight range (0-100/100-500) - air freight</td>
+                    </tr>
+                    <tr>
+                        <td><strong>price</strong></td>
+                        <td class="type">REAL</td>
+                        <td>-</td>
+                        <td>Price</td>
+                    </tr>
+                    <tr>
+                        <td><strong>currency</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Currency (USD)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>transit_days</strong></td>
+                        <td class="type">INTEGER</td>
+                        <td>-</td>
+                        <td>Transit days</td>
+                    </tr>
+                    <tr>
+                        <td><strong>created_at</strong></td>
+                        <td class="type">TEXT</td>
+                        <td>-</td>
+                        <td>Creation timestamp</td>
+                    </tr>
+                </table>
+
+                <div style="margin-top: 30px; padding: 15px; background: #E8F5E9; border-left: 4px solid #4CAF50;">
+                    <strong>Index Details:</strong><br>
+                    • idx_orders_number: orders(order_number)<br>
+                    • idx_orders_email: orders(customer_email)<br>
+                    • idx_logistics_routes_lookup: logistics_routes(origin, destination, shipping_method)
+                </div>
+            </div>
+        </div>
+
+        <div class="relationships">
+            <h2>🔗 Table Relationships</h2>
+            <div class="rel-item">📧 emails (1) → 💬 replies (N) | Foreign Key: replies.email_id → emails.id</div>
+            <div class="rel-item">📧 emails (1) → 📝 audit_log (N) | Foreign Key: audit_log.email_id → emails.id</div>
+            <div class="rel-item">📧 emails ↔ 📦 orders | Logical Link: order_number extracted from email body</div>
+            <div class="rel-item">📧 emails ↔ 🚢 logistics_routes | Logical Link: route info (origin, destination, method) extracted from pricing inquiries</div>
+        </div>
+    </div>
+</body>
+</html>

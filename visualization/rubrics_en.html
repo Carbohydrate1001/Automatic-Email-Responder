@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rubrics - Scoring Standards</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+            font-size: 13px;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .rubric-section {
+            margin-bottom: 40px;
+        }
+        h2 {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            margin: 0 0 20px 0;
+            font-size: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        th {
+            background: #333;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-weight: bold;
+        }
+        td {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .dimension-name {
+            font-weight: bold;
+            color: #2196F3;
+            font-size: 14px;
+        }
+        .weight {
+            background: #FFC107;
+            color: #333;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .score {
+            font-weight: bold;
+            font-size: 16px;
+            color: #4CAF50;
+        }
+        .score-0 { color: #f44336; }
+        .score-1 { color: #FF9800; }
+        .score-2 { color: #2196F3; }
+        .score-3 { color: #4CAF50; }
+        .formula-box {
+            background: #E3F2FD;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        .threshold-box {
+            background: #FFF3E0;
+            border-left: 4px solid #FF9800;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .threshold-item {
+            margin: 8px 0;
+            font-weight: bold;
+        }
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        @media print {
+            body { background: white; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Rubric-Based Scoring System</h1>
+
+        <div class="grid-2col">
+            <!-- Classification Rubric -->
+            <div class="rubric-section">
+                <h2>1. Classification Rubric</h2>
+
+                <table>
+                    <tr>
+                        <th style="width: 20%">Dimension</th>
+                        <th style="width: 10%">Weight</th>
+                        <th style="width: 8%">Score</th>
+                        <th style="width: 15%">Label</th>
+                        <th>Criteria</th>
+                    </tr>
+                    <tr>
+                        <td rowspan="4"><span class="dimension-name">keyword_match</span><br>Keyword presence</td>
+                        <td rowspan="4"><span class="weight">25%</span></td>
+                        <td class="score score-0">0</td>
+                        <td>No Match</td>
+                        <td>No relevant keywords found</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-1">1</td>
+                        <td>Generic Match</td>
+                        <td>Generic business keywords only</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-2">2</td>
+                        <td>Partial Match</td>
+                        <td>1-2 category-specific keywords</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-3">3</td>
+                        <td>Strong Match</td>
+                        <td>3+ category-specific keywords, clearly indicate category</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><span class="dimension-name">intent_clarity</span><br>Customer intent clarity</td>
+                        <td rowspan="4"><span class="weight">30%</span></td>
+                        <td class="score score-0">0</td>
+                        <td>Unclear</td>
+                        <td>Intent unclear or ambiguous, multiple interpretations</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-1">1</td>
+                        <td>Somewhat Clear</td>
+                        <td>General intent identifiable, lacks specific details</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-2">2</td>
+                        <td>Clear</td>
+                        <td>Intent clearly stated, minor details missing</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-3">3</td>
+                        <td>Crystal Clear</td>
+                        <td>Intent explicitly stated, all relevant details provided, no ambiguity</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><span class="dimension-name">context_completeness</span><br>Sufficient context</td>
+                        <td rowspan="4"><span class="weight">25%</span></td>
+                        <td class="score score-0">0</td>
+                        <td>Missing Context</td>
+                        <td>Essential information absent, cannot categorize confidently</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-1">1</td>
+                        <td>Minimal Context</td>
+                        <td>Basic information present, missing supporting details</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-2">2</td>
+                        <td>Adequate Context</td>
+                        <td>Sufficient information to categorize, some supporting details</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-3">3</td>
+                        <td>Rich Context</td>
+                        <td>Comprehensive information, multiple supporting details, background context</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><span class="dimension-name">exclusion_confidence</span><br>Exclusion from other categories</td>
+                        <td rowspan="4"><span class="weight">20%</span></td>
+                        <td class="score score-0">0</td>
+                        <td>Multiple Categories</td>
+                        <td>Could belong to 3+ categories, no clear primary</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-1">1</td>
+                        <td>Some Overlap</td>
+                        <td>Matches 2 categories, primary identifiable but uncertain</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-2">2</td>
+                        <td>Minimal Overlap</td>
+                        <td>Clearly belongs to one category, minor overlap with 1 other</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-3">3</td>
+                        <td>Clearly Distinct</td>
+                        <td>Uniquely matches one category, no overlap, unambiguous</td>
+                    </tr>
+                </table>
+
+                <div class="formula-box">
+                    <strong>Formula:</strong><br>
+                    weighted_score = Σ(dimension_score × weight)<br>
+                    confidence = weighted_score / 3.0<br>
+                    Range: 0.0 - 1.0
+                </div>
+            </div>
+
+            <!-- Auto-Send Rubric -->
+            <div class="rubric-section">
+                <h2>2. Auto-Send Rubric</h2>
+
+                <table>
+                    <tr>
+                        <th style="width: 20%">Dimension</th>
+                        <th style="width: 10%">Weight</th>
+                        <th style="width: 8%">Score</th>
+                        <th style="width: 15%">Label</th>
+                        <th>Criteria</th>
+                    </tr>
+                    <tr>
+                        <td rowspan="4"><span class="dimension-name">information_completeness</span><br>Reply quality & completeness</td>
+                        <td rowspan="4"><span class="weight">30%</span></td>
+                        <td class="score score-0">0</td>
+                        <td>Cannot Respond</td>
+                        <td>Customer intent completely unclear, cannot generate meaningful response</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-1">1</td>
+                        <td>Generic Only</td>
+                        <td>Can acknowledge receipt but cannot address specific need</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-2">2</td>
+                        <td>Appropriate Response</td>
+                        <td>Addresses category/intent, clearly explains missing info, provides specific guidance</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-3">3</td>
+                        <td>Complete & Actionable</td>
+                        <td>Complete, clear, professional reply. Either directly resolves OR provides standard request-info template</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><span class="dimension-name">risk_level</span><br>Risk of incorrect response</td>
+                        <td rowspan="4"><span class="weight">35%</span></td>
+                        <td class="score score-0">0</td>
+                        <td>High Risk</td>
+                        <td>Financial commitment, legal implications, safety concerns, requires human judgment</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-1">1</td>
+                        <td>Medium Risk</td>
+                        <td>Could significantly impact customer satisfaction, moderate financial implications</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-2">2</td>
+                        <td>Low Risk</td>
+                        <td>Standard inquiry type, minimal financial impact, low error probability</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-3">3</td>
+                        <td>Minimal Risk</td>
+                        <td>Routine inquiry, no financial implications, standard template perfect fit. Requesting missing info is inherently low-risk</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><span class="dimension-name">template_applicability</span><br>Template fit for scenario</td>
+                        <td rowspan="4"><span class="weight">20%</span></td>
+                        <td class="score score-0">0</td>
+                        <td>Doesn't Apply</td>
+                        <td>Unique situation not covered by template, needs custom response</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-1">1</td>
+                        <td>Partial Fit</td>
+                        <td>Template covers general case, significant modifications needed, multiple placeholders</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-2">2</td>
+                        <td>Good Fit</td>
+                        <td>Template covers this scenario, minor customization needed, few placeholders</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-3">3</td>
+                        <td>Perfect Fit</td>
+                        <td>Template designed for this exact case. Standard "request information" templates apply perfectly</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><span class="dimension-name">policy_alignment</span><br>Company policy compliance</td>
+                        <td rowspan="4"><span class="weight">15%</span></td>
+                        <td class="score score-0">0</td>
+                        <td>Potential Violation</td>
+                        <td>May violate company policy, commitment beyond authority</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-1">1</td>
+                        <td>Uncertain</td>
+                        <td>Policy applicability unclear, edge case not covered</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-2">2</td>
+                        <td>Likely Compliant</td>
+                        <td>Follows general policy guidelines, no obvious violations</td>
+                    </tr>
+                    <tr>
+                        <td class="score score-3">3</td>
+                        <td>Clearly Compliant</td>
+                        <td>Explicitly follows policy, pre-approved response type</td>
+                    </tr>
+                </table>
+
+                <div class="threshold-box">
+                    <strong>Auto-Send Decision Thresholds:</strong>
+                    <div class="threshold-item">✓ auto_send_minimum: ≥ 2.5 / 3.0</div>
+                    <div class="threshold-item">✓ require_all_above: > 1 (no dimension = 0)</div>
+                    <div class="threshold-item">✓ high_confidence: ≥ 2.7 / 3.0</div>
+                </div>
+
+                <div class="formula-box">
+                    <strong>Formula:</strong><br>
+                    weighted_score = Σ(dimension_score × weight)<br>
+                    confidence = weighted_score / 3.0<br>
+                    auto_send = (weighted_score ≥ 2.5) AND (all dimensions > 1)
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 15px; background: #E8F5E9; border-left: 4px solid #4CAF50;">
+            <strong>Key Insight:</strong> "Requesting missing information" is NOT a failure case - when intent is clear, it's a complete, professional, low-risk customer service response that should be auto-sent. The system now correctly distinguishes: ❌ Cannot understand customer intent → Manual review | ✅ Clear intent + missing info → Auto-send "please provide X" | ✅ Clear intent + all info present → Auto-send resolution
+        </div>
+    </div>
+</body>
+</html>

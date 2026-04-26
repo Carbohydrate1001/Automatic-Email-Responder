@@ -81,40 +81,131 @@ class ReplyService:
         body: str,
         received_at: str,
     ) -> str:
-        from datetime import timedelta
-        from services.company_info_service import CompanyInfoService
+        from services.logistics_service import get_logistics_service, RouteNotFoundError
+        import re
 
         customer_name = self._extract_customer_name(sender)
-        products = CompanyInfoService().list_products()
-        selected_product = self._select_product(subject, body, products)
+        text = f"{subject}\n{body}".lower()
 
-        if selected_product:
-            product_name = str(selected_product.get("product_name", "未配置产品"))
-            unit_price = selected_product.get("unit_price", "N/A")
-            currency = str(selected_product.get("currency", "USD"))
-            moq = selected_product.get("min_order_quantity", "N/A")
-            lead_days = int(selected_product.get("delivery_lead_time_days", 0) or 0)
-            eta_date = (self._resolve_base_date(received_at) + timedelta(days=lead_days)).date().isoformat()
-            unit_price_text = f"{currency} {unit_price}"
-        else:
-            product_name = "未配置产品"
-            unit_price_text = "N/A"
-            moq = "N/A"
-            eta_date = self._resolve_base_date(received_at).date().isoformat()
+        # Extract route information
+        origin = self._extract_city_name(text, is_origin=True)
+        destination = self._extract_city_name(text, is_origin=False)
 
+        # Determine shipping method
+        shipping_method = None
+        if any(keyword in text for keyword in ['海运', 'sea freight', '海运价格', '整柜']):
+            shipping_method = 'sea_freight'
+        elif any(keyword in text for keyword in ['空运', 'air freight', '空运价格', '航空']):
+            shipping_method = 'air_freight'
+
+        # Extract container type for sea freight
+        container_type = None
+        if shipping_method == 'sea_freight':
+            if '20' in text and ('尺' in text or 'ft' in text or '柜' in text):
+                container_type = '20ft'
+            elif '40' in text and ('尺' in text or 'ft' in text or '柜' in text):
+                container_type = '40ft'
+
+        # Extract weight for air freight
+        weight_kg = None
+        if shipping_method == 'air_freight':
+            weight_match = re.search(r'(\d+)\s*(?:公斤|kg|千克)', text)
+            if weight_match:
+                weight_kg = float(weight_match.group(1))
+
+        # Query logistics database if we have enough information
+        if origin and destination and shipping_method:
+            try:
+                logistics_service = get_logistics_service()
+                route = logistics_service.query_route_pricing(
+                    origin=origin,
+                    destination=destination,
+                    shipping_method=shipping_method,
+                    container_type=container_type,
+                    weight_kg=weight_kg
+                )
+
+                route_info = logistics_service.format_route_pricing(route, language="zh")
+
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    "感谢您的询价。根据您提供的信息，以下是我们的运输报价：\n\n"
+                    f"{route_info}\n\n"
+                    "备注：\n"
+                    "- 以上报价为基础运费，不含目的港费用、关税等\n"
+                    "- 实际价格可能因货物性质、旺季因素等有所调整\n"
+                    "- 报价有效期：7天\n\n"
+                    "如需更详细的报价或有其他问题，请随时与我们联系。\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd.\n"
+                    "+86 123 456 7890"
+                )
+
+            except RouteNotFoundError:
+                # Route not in database - request more details
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    "感谢您的询价。关于您咨询的运输路线，我们需要进一步核实具体报价。\n\n"
+                    f"您咨询的路线：{origin} -> {destination}\n\n"
+                    "为了给您提供准确的报价，请提供以下信息：\n"
+                    "- 货物类型和名称\n"
+                    "- 货物重量/体积\n"
+                    "- 是否需要特殊处理（如冷藏、危险品等）\n"
+                    "- 期望的运输时效\n\n"
+                    "我们的客服团队将在收到详细信息后，尽快为您提供准确报价。\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd.\n"
+                    "+86 123 456 7890"
+                )
+
+        # Insufficient information - request details
         return (
             f"尊敬的 {customer_name}，\n\n"
-            "感谢您对我们产品的询价。以下是您所需产品的报价信息：\n"
-            f"- 产品名称：{product_name}\n"
-            f"- 单价：{unit_price_text}\n"
-            f"- 最小订购量：{moq}\n"
-            f"- 预计交货期：{eta_date}\n\n"
-            "如果您有任何问题或进一步需求，请随时与我们联系。\n\n"
-            "感谢您的关注，期待与您的合作！\n\n"
+            "感谢您对我们物流服务的关注。为了给您提供准确的报价，请提供以下信息：\n\n"
+            "- 起运地（城市）\n"
+            "- 目的地（城市）\n"
+            "- 运输方式（海运/空运）\n"
+            "- 货物重量/体积或柜型（如20尺柜、40尺柜）\n"
+            "- 货物类型\n\n"
+            "收到详细信息后，我们将尽快为您提供专业的运输方案和报价。\n\n"
             "此致，\n"
             "MIS2001 Dev Ltd.\n"
             "+86 123 456 7890"
         )
+
+    @staticmethod
+    def _extract_city_name(text: str, is_origin: bool) -> str | None:
+        """Extract city name from pricing inquiry text."""
+        # Common city names in Chinese and English
+        cities = [
+            '深圳', '上海', '广州', '北京', '香港', '天津', '宁波', '青岛',
+            '纽约', '洛杉矶', '芝加哥', '休斯顿', '旧金山',
+            '伦敦', '巴黎', '汉堡', '鹿特丹', '安特卫普',
+            '东京', '新加坡', '迪拜', '悉尼', '墨尔本'
+        ]
+
+        # Look for "从X到Y" or "X到Y" pattern
+        import re
+        pattern = r'(?:从|自)?\s*([^\s到至]+?)\s*(?:到|至|->|→)\s*([^\s，。！？]+)'
+        match = re.search(pattern, text)
+
+        if match:
+            origin_candidate = match.group(1).strip()
+            dest_candidate = match.group(2).strip()
+
+            # Check if candidates are valid cities
+            for city in cities:
+                if is_origin and city in origin_candidate:
+                    return city
+                elif not is_origin and city in dest_candidate:
+                    return city
+
+        # Fallback: look for any city mention
+        for city in cities:
+            if city in text:
+                return city
+
+        return None
 
     @staticmethod
     def _generate_order_number() -> str:
@@ -122,42 +213,54 @@ class ReplyService:
 
         return f"ORD{randint(100000, 999999)}"
 
-    @staticmethod
-    def _generate_billing_number() -> str:
-        from random import randint
+    def _generate_billing_invoice_template_reply(self, sender: str, body: str) -> str:
+        from services.order_service import get_order_service, OrderNotFoundError
 
-        return f"BILL{randint(100000, 999999)}"
-
-    @staticmethod
-    def _generate_invoice_info() -> str:
-        from random import choice, randint
-
-        invoice_type = choice(["电子普通发票", "电子专用发票", "纸质发票"])
-        invoice_code = f"INV{randint(1000000, 9999999)}"
-        return f"{invoice_type}（发票编号：{invoice_code}）"
-
-    @staticmethod
-    def _generate_billing_amount() -> str:
-        from random import randint
-
-        amount = randint(500, 50000)
-        return f"CNY {amount}.00"
-
-    def _generate_billing_invoice_template_reply(self, sender: str) -> str:
         customer_name = self._extract_sender_local_part(sender)
-        billing_no = self._generate_billing_number()
-        amount = self._generate_billing_amount()
-        payment_status = "已付款"
-        invoice_info = self._generate_invoice_info()
+        order_number = self._extract_order_number_from_text(body)
 
+        # Try to find order for billing/invoice information
+        if order_number:
+            try:
+                order_service = get_order_service()
+                order = order_service.validate_order_ownership(order_number, sender)
+
+                # Format billing information from order
+                order_info = order_service.format_order_info(order, language="zh")
+
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    "感谢您的来信。以下是您订单的账单及发票信息：\n\n"
+                    f"{order_info}\n\n"
+                    "发票说明：\n"
+                    "- 电子发票将在订单完成后3个工作日内发送至您的邮箱\n"
+                    "- 如需纸质发票，请提供邮寄地址\n"
+                    "- 如需修改发票抬头，请在开票前联系我们\n\n"
+                    "如有任何疑问，请随时联系我们的财务部门。\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd. 财务部\n"
+                    "+86 123 456 7890"
+                )
+            except OrderNotFoundError:
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    f"感谢您的来信。关于您查询的订单 {order_number}，我们在系统中未能找到相关记录。\n\n"
+                    "为了查询您的账单和发票信息，请提供：\n"
+                    "- 正确的订单号\n"
+                    "- 下单时使用的邮箱\n"
+                    "- 订单日期（大致时间）\n\n"
+                    "财务部联系方式：+86 123 456 7890\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd. 财务部"
+                )
+
+        # No order number found - request it
         return (
             f"尊敬的 {customer_name}，\n\n"
-            "感谢您的来信。以下是您的账单及付款信息：\n"
-            f"- 账单号：{billing_no}\n"
-            f"- 账单金额：{amount}\n"
-            f"- 付款状态：{payment_status}\n"
-            f"- 发票信息：{invoice_info}\n\n"
-            "如有任何疑问，请随时联系我们的财务部门。感谢您的配合与支持！\n\n"
+            "感谢您的来信。为了查询您的账单和发票信息，请提供以下信息：\n\n"
+            "- 订单号（格式如：ORD123456）\n"
+            "- 或提供下单时使用的邮箱和订单日期\n\n"
+            "收到信息后，我们将尽快为您提供详细的账单和发票信息。\n\n"
             "此致，\n"
             "MIS2001 Dev Ltd. 财务部\n"
             "+86 123 456 7890"
@@ -186,9 +289,7 @@ class ReplyService:
                 order_service = get_order_service()
                 order = order_service.validate_order_ownership(order_number, sender)
 
-                # Update order status to cancelled
-                order_service.update_order_status(order_number, order_status="cancelled")
-
+                # Format order info (do NOT update status here - that should happen after email is sent)
                 order_info = order_service.format_order_info(order, language="zh")
 
                 return (
@@ -209,10 +310,9 @@ class ReplyService:
                     f"感谢您的来信。关于您提到的订单 {order_number}，我们在系统中未能找到相关记录，"
                     "或该订单不属于您的账户。\n\n"
                     "请您核实订单号是否正确，或联系我们的客服团队获取进一步帮助。\n\n"
-                    "客服热线：+86 123 456 7890\n"
-                    "客服邮箱：support@mis2001.com\n\n"
                     "此致，\n"
-                    "MIS2001 Dev Ltd."
+                    "MIS2001 Dev Ltd.\n"
+                    "+86 123 456 7890"
                 )
 
         # No order number found in email
@@ -279,26 +379,59 @@ class ReplyService:
             "+86 123 456 7890"
         )
 
-    @staticmethod
-    def _generate_route() -> str:
-        from random import sample
+    def _generate_shipping_time_template_reply(self, sender: str, body: str) -> str:
+        from services.order_service import get_order_service, OrderNotFoundError
 
-        cities = ["深圳", "新加坡", "鹿特丹", "上海", "香港", "迪拜", "汉堡", "洛杉矶"]
-        route_cities = sample(cities, 3)
-        return " -> ".join(route_cities)
-
-    def _generate_shipping_time_template_reply(self, sender: str) -> str:
         customer_name = self._extract_sender_local_part(sender)
-        route = self._generate_route()
-        eta_date = "2026/3/16"
+        order_number = self._extract_order_number_from_text(body)
 
+        # If order number provided, query database for real order info
+        if order_number:
+            try:
+                order_service = get_order_service()
+                order = order_service.validate_order_ownership(order_number, sender)
+                order_info = order_service.format_order_info(order, language="zh")
+
+                # Add ETA if in transit
+                eta_info = ""
+                if order['shipping_status'] == 'in_transit':
+                    eta_info = "\n- 预计到达日期：2026/5/15"
+
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    "感谢您的来信。以下是您订单的运输时效信息：\n\n"
+                    f"{order_info}{eta_info}\n\n"
+                    "如需更多帮助，您可以随时通过我们的客服热线或邮件联系我们。\n\n"
+                    "感谢您的耐心等待，祝您有愉快的一天！\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd.\n"
+                    "+86 123 456 7890"
+                )
+            except OrderNotFoundError:
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    f"感谢您的来信。关于您查询的订单 {order_number}，我们在系统中未能找到相关记录。\n\n"
+                    "请您核实订单号是否正确，或提供以下信息以便我们查询：\n"
+                    "- 下单时使用的邮箱\n"
+                    "- 订单日期\n"
+                    "- 产品名称\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd.\n"
+                    "+86 123 456 7890"
+                )
+
+        # No order number - provide general shipping time guidance
         return (
             f"尊敬的 {customer_name}，\n\n"
-            "感谢您的来信。根据您的需求，以下是您的货物的运输信息：\n"
-            f"- 运输路线：{route}\n"
-            f"- 预计到达时间：{eta_date}\n\n"
-            "如需更多信息，请随时与我们联系。\n\n"
-            "感谢您的支持，期待为您提供优质的服务！\n\n"
+            "感谢您的来信。关于运输时效的咨询，以下是我们公司的一般运输时间参考：\n\n"
+            "- 国内快递：1-3个工作日\n"
+            "- 国际快递（亚洲）：3-5个工作日\n"
+            "- 国际快递（欧美）：5-7个工作日\n"
+            "- 海运（亚洲）：7-14天\n"
+            "- 海运（欧美）：20-35天\n\n"
+            "具体时效会根据起运地、目的地、货物类型、海关清关等因素有所不同。\n\n"
+            "如果您有具体的订单需要查询，请提供订单号，我们将为您提供准确的物流信息。\n"
+            "如需获取具体路线的报价和时效，欢迎提供详细的起运地和目的地信息。\n\n"
             "此致，\n"
             "MIS2001 Dev Ltd.\n"
             "+86 123 456 7890"
@@ -348,7 +481,10 @@ class ReplyService:
                 order = order_service.validate_order_ownership(order_number, sender)
 
                 # Update shipping status to exception
-                order_service.update_order_status(order_number, shipping_status="exception")
+                # DEMO_MODE: Skip database updates to preserve test data
+                from config import Config
+                if not Config.DEMO_MODE:
+                    order_service.update_order_status(order_number, shipping_status="exception")
 
                 order_info = order_service.format_order_info(order, language="zh")
                 solution = "我们将安排专人与您联系，协调上门回收货物并重新派送"
@@ -413,13 +549,13 @@ class ReplyService:
             return self._generate_order_tracking_template_reply(sender, body)
 
         if category == "shipping_time":
-            return self._generate_shipping_time_template_reply(sender)
+            return self._generate_shipping_time_template_reply(sender, body)
 
         if category == "shipping_exception":
             return self._generate_shipping_exception_template_reply(sender, body)
 
         if category == "billing_invoice":
-            return self._generate_billing_invoice_template_reply(sender)
+            return self._generate_billing_invoice_template_reply(sender, body)
 
         if category == "non_business":
             return self._generate_non_business_template_reply(sender)

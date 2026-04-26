@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YAML Configuration</title>
+    <style>
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 20px;
+            background: #f5f5f5;
+            font-size: 12px;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 24px;
+            border-bottom: 3px solid #FF9800;
+            padding-bottom: 8px;
+            font-family: Arial, sans-serif;
+        }
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 20px;
+        }
+        .yaml-tree {
+            background: #263238;
+            color: #AED581;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 11px;
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+        .yaml-key { color: #FFD54F; }
+        .yaml-value { color: #81C784; }
+        .yaml-comment { color: #78909C; }
+        .yaml-number { color: #FF9800; }
+        .indent { margin-left: 20px; }
+        .config-box {
+            background: #FFF3E0;
+            border-left: 4px solid #FF9800;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+        .config-box h3 {
+            margin: 0 0 10px 0;
+            color: #E65100;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+        }
+        .param-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #FFE0B2;
+            font-size: 11px;
+        }
+        .param-row:last-child {
+            border-bottom: none;
+        }
+        .param-name {
+            font-weight: bold;
+            color: #555;
+        }
+        .param-value {
+            color: #FF6F00;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 11px;
+        }
+        th {
+            background: #333;
+            color: white;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 10px;
+        }
+        td {
+            padding: 5px 8px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .rubric-header {
+            background: #FF9800;
+            color: white;
+            padding: 8px 12px;
+            margin: 20px 0 12px 0;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+        }
+        .score-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 10px;
+            margin-right: 5px;
+        }
+        .score-0 { background: #FFCDD2; color: #C62828; }
+        .score-1 { background: #FFE0B2; color: #E65100; }
+        .score-2 { background: #BBDEFB; color: #1565C0; }
+        .score-3 { background: #C8E6C9; color: #2E7D32; }
+        @media print {
+            body { background: white; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚙️ YAML Configuration Structure</h1>
+
+        <div class="grid-2col">
+            <!-- Left: YAML Structure -->
+            <div>
+                <div class="yaml-tree">
+<span class="yaml-comment"># config/rubrics.yaml</span>
+
+<span class="yaml-key">classification_rubric:</span>
+  <span class="yaml-key">version:</span> <span class="yaml-value">"1.0"</span>
+  <span class="yaml-key">description:</span> <span class="yaml-value">"Structured scoring for email classification"</span>
+  <span class="yaml-key">dimensions:</span>
+    - <span class="yaml-key">name:</span> <span class="yaml-value">keyword_match</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.25</span>
+      <span class="yaml-key">description:</span> <span class="yaml-value">"Presence of category-specific keywords"</span>
+      <span class="yaml-key">scoring_guide:</span>
+        <span class="yaml-number">0:</span>
+          <span class="yaml-key">label:</span> <span class="yaml-value">"No Match"</span>
+          <span class="yaml-key">description:</span> <span class="yaml-value">"No relevant keywords found"</span>
+          <span class="yaml-key">criteria:</span>
+            - <span class="yaml-value">"Email contains no category-specific keywords"</span>
+            - <span class="yaml-value">"Only generic words present"</span>
+        <span class="yaml-number">1:</span>
+          <span class="yaml-key">label:</span> <span class="yaml-value">"Generic Match"</span>
+          <span class="yaml-key">description:</span> <span class="yaml-value">"Generic business keywords only"</span>
+          <span class="yaml-key">criteria:</span> [...]
+        <span class="yaml-number">2:</span>
+          <span class="yaml-key">label:</span> <span class="yaml-value">"Partial Match"</span>
+          <span class="yaml-key">criteria:</span> [...]
+        <span class="yaml-number">3:</span>
+          <span class="yaml-key">label:</span> <span class="yaml-value">"Strong Match"</span>
+          <span class="yaml-key">criteria:</span> [...]
+    - <span class="yaml-key">name:</span> <span class="yaml-value">intent_clarity</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.30</span>
+      <span class="yaml-key">scoring_guide:</span> {0, 1, 2, 3}
+    - <span class="yaml-key">name:</span> <span class="yaml-value">context_completeness</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.25</span>
+      <span class="yaml-key">scoring_guide:</span> {0, 1, 2, 3}
+    - <span class="yaml-key">name:</span> <span class="yaml-value">exclusion_confidence</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.20</span>
+      <span class="yaml-key">scoring_guide:</span> {0, 1, 2, 3}
+  <span class="yaml-key">confidence_mapping:</span>
+    <span class="yaml-key">formula:</span> <span class="yaml-value">"weighted_score / 3.0"</span>
+    <span class="yaml-key">min_confidence:</span> <span class="yaml-number">0.0</span>
+    <span class="yaml-key">max_confidence:</span> <span class="yaml-number">1.0</span>
+
+<span class="yaml-key">auto_send_rubric:</span>
+  <span class="yaml-key">version:</span> <span class="yaml-value">"1.0"</span>
+  <span class="yaml-key">dimensions:</span>
+    - <span class="yaml-key">name:</span> <span class="yaml-value">information_completeness</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.30</span>
+      <span class="yaml-key">scoring_guide:</span> {0, 1, 2, 3}
+    - <span class="yaml-key">name:</span> <span class="yaml-value">risk_level</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.35</span>
+      <span class="yaml-key">scoring_guide:</span> {0, 1, 2, 3}
+    - <span class="yaml-key">name:</span> <span class="yaml-value">template_applicability</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.20</span>
+      <span class="yaml-key">scoring_guide:</span> {0, 1, 2, 3}
+    - <span class="yaml-key">name:</span> <span class="yaml-value">policy_alignment</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.15</span>
+      <span class="yaml-key">scoring_guide:</span> {0, 1, 2, 3}
+  <span class="yaml-key">thresholds:</span>
+    <span class="yaml-key">auto_send_minimum:</span> <span class="yaml-number">2.5</span>
+    <span class="yaml-key">require_all_above:</span> <span class="yaml-number">1</span>
+    <span class="yaml-key">high_confidence:</span> <span class="yaml-number">2.7</span>
+  <span class="yaml-key">confidence_mapping:</span>
+    <span class="yaml-key">formula:</span> <span class="yaml-value">"weighted_score / 3.0"</span>
+
+<span class="yaml-key">reply_quality_rubric:</span>
+  <span class="yaml-key">version:</span> <span class="yaml-value">"1.0"</span>
+  <span class="yaml-key">dimensions:</span>
+    - <span class="yaml-key">name:</span> <span class="yaml-value">factual_accuracy</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.35</span>
+      <span class="yaml-key">blocking_threshold:</span> <span class="yaml-number">1</span>
+      <span class="yaml-key">scoring_guide:</span> {0, 1, 2, 3}
+    - <span class="yaml-key">name:</span> <span class="yaml-value">tone_appropriateness</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.20</span>
+      <span class="yaml-key">blocking_threshold:</span> <span class="yaml-number">0</span>
+    - <span class="yaml-key">name:</span> <span class="yaml-value">completeness</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.25</span>
+      <span class="yaml-key">blocking_threshold:</span> <span class="yaml-number">1</span>
+    - <span class="yaml-key">name:</span> <span class="yaml-value">policy_compliance</span>
+      <span class="yaml-key">weight:</span> <span class="yaml-number">0.20</span>
+      <span class="yaml-key">blocking_threshold:</span> <span class="yaml-number">0</span>
+  <span class="yaml-key">thresholds:</span>
+    <span class="yaml-key">minimum_quality_score:</span> <span class="yaml-number">0.75</span>
+    <span class="yaml-key">blocking_score:</span> <span class="yaml-number">1</span>
+    <span class="yaml-key">warning_score:</span> <span class="yaml-number">2</span>
+
+<span class="yaml-key">prompts:</span>
+  <span class="yaml-key">classification_scoring:</span>
+    <span class="yaml-key">system:</span> <span class="yaml-value">"You are an expert email classifier..."</span>
+    <span class="yaml-key">user_template:</span> <span class="yaml-value">"Email to classify: {subject}..."</span>
+  <span class="yaml-key">auto_send_scoring:</span>
+    <span class="yaml-key">system:</span> <span class="yaml-value">"You are an expert at evaluating..."</span>
+    <span class="yaml-key">user_template:</span> <span class="yaml-value">"Original Email: {subject}..."</span>
+  <span class="yaml-key">reply_quality_validation:</span>
+    <span class="yaml-key">system:</span> <span class="yaml-value">"You are an expert at validating..."</span>
+    <span class="yaml-key">user_template:</span> <span class="yaml-value">"Original Email: {subject}..."</span>
+                </div>
+            </div>
+
+            <!-- Right: Configuration Summary -->
+            <div>
+                <div class="config-box">
+                    <h3>📊 Classification Rubric</h3>
+                    <div class="param-row">
+                        <span class="param-name">Dimensions</span>
+                        <span class="param-value">4</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Scoring Range</span>
+                        <span class="param-value">0-3 per dimension</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Output Range</span>
+                        <span class="param-value">0.0-1.0 confidence</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Formula</span>
+                        <span class="param-value">weighted_score / 3.0</span>
+                    </div>
+                </div>
+
+                <div class="config-box">
+                    <h3>🚀 Auto-Send Rubric</h3>
+                    <div class="param-row">
+                        <span class="param-name">Dimensions</span>
+                        <span class="param-value">4</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Auto-Send Threshold</span>
+                        <span class="param-value">≥ 2.5 / 3.0</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Blocking Rule</span>
+                        <span class="param-value">All dimensions > 1</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">High Confidence</span>
+                        <span class="param-value">≥ 2.7 / 3.0</span>
+                    </div>
+                </div>
+
+                <div class="config-box">
+                    <h3>✅ Reply Quality Rubric</h3>
+                    <div class="param-row">
+                        <span class="param-name">Dimensions</span>
+                        <span class="param-value">4 (with blocking thresholds)</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Minimum Quality</span>
+                        <span class="param-value">≥ 0.75 (75%)</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Blocking Dimensions</span>
+                        <span class="param-value">factual_accuracy ≤ 1, tone ≤ 0</span>
+                    </div>
+                </div>
+
+                <div class="config-box">
+                    <h3>💬 LLM Prompts</h3>
+                    <div class="param-row">
+                        <span class="param-name">Classification Scoring</span>
+                        <span class="param-value">system + user_template</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Auto-Send Scoring</span>
+                        <span class="param-value">system + user_template</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-name">Quality Validation</span>
+                        <span class="param-value">system + user_template</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rubric-header">Dimension Pattern</div>
+        <div style="background: #f9f9f9; padding: 12px; border: 1px solid #ddd; font-size: 11px;">
+            <strong>Structure:</strong> name → weight → scoring_guide{0,1,2,3} → each level{label, description, criteria[]}<br>
+            <strong>Example:</strong> keyword_match (0.25) → 0: No Match | 1: Generic | 2: Partial | 3: Strong
+        </div>
+
+        <div style="margin-top: 15px; padding: 10px; background: #E8F5E9; border-left: 4px solid #4CAF50; font-size: 11px;">
+            <strong>Summary:</strong> 3 rubrics × 4 dimensions × 4 scoring levels | Weighted scoring (0-3) → confidence (0-1) | Thresholds control auto-send
+        </div>
+    </div>
+</body>
+</html>

@@ -72,6 +72,23 @@ def init_db():
 
             CREATE INDEX IF NOT EXISTS idx_orders_number ON orders(order_number);
             CREATE INDEX IF NOT EXISTS idx_orders_email ON orders(customer_email);
+
+            CREATE TABLE IF NOT EXISTS logistics_routes (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                origin          TEXT NOT NULL,
+                destination     TEXT NOT NULL,
+                shipping_method TEXT NOT NULL,
+                container_type  TEXT,
+                weight_range    TEXT,
+                price           REAL NOT NULL,
+                currency        TEXT DEFAULT 'USD',
+                transit_days    INTEGER,
+                created_at      TEXT DEFAULT (datetime('now')),
+                updated_at      TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_logistics_routes_lookup
+                ON logistics_routes(origin, destination, shipping_method);
         """)
         _ensure_column(conn, "emails", "retry_count", "INTEGER DEFAULT 0")
         _ensure_column(conn, "emails", "last_error", "TEXT")
@@ -90,6 +107,14 @@ def init_db():
         _ensure_column(conn, "emails", "consent_status", "TEXT DEFAULT 'unknown'")  # GIVEN, WITHDRAWN, UNKNOWN
         _ensure_column(conn, "emails", "pii_detected", "INTEGER DEFAULT 0")         # Boolean
         _ensure_column(conn, "emails", "pii_types", "TEXT")                         # JSON list of detected PII types
+
+        # Phase 6: Soft delete columns
+        _ensure_column(conn, "emails", "is_deleted", "INTEGER DEFAULT 0")
+        _ensure_column(conn, "emails", "deleted_at", "TEXT")
+        _ensure_column(conn, "emails", "deleted_by", "TEXT")
+
+        # Create index for query performance
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_emails_deleted ON emails(is_deleted)")
 
         conn.commit()
 
