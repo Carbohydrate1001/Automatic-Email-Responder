@@ -6,6 +6,7 @@ Blueprint prefix: /auth
 from flask import Blueprint, redirect, request, session, jsonify, url_for
 import msal
 import requests
+import time
 from config import Config
 
 auth_bp = Blueprint("auth", __name__)
@@ -65,6 +66,8 @@ def callback():
     print(f"[AUTH] token_type: {result.get('token_type')}", flush=True)
 
     session["access_token"] = result["access_token"]
+    session["refresh_token"] = result.get("refresh_token")
+    session["token_expires_at"] = int(time.time()) + result.get("expires_in", 3600)
     session["user"] = result.get("id_token_claims", {})
 
     # Redirect to frontend
@@ -109,3 +112,54 @@ def status():
             },
         })
     return jsonify({"authenticated": False})
+
+
+def refresh_access_token():
+    """Refresh the access token using the refresh token. Returns new access_token or None."""
+    refresh_token = session.get("refresh_token")
+    if not refresh_token:
+        print("[AUTH] No refresh token available", flush=True)
+        return None
+
+    try:
+        msal_app = _build_msal_app()
+        result = msal_app.acquire_token_by_refresh_token(
+            refresh_token,
+            scopes=Config.GRAPH_SCOPES,
+        )
+
+        if "error" in result:
+            print(f"[AUTH] Token refresh failed: {result.get('error')}", flush=True)
+            return None
+
+        # Update session with new tokens
+        session["access_token"] = result["access_token"]
+        if "refresh_token" in result:
+            session["refresh_token"] = result["refresh_token"]
+        session["token_expires_at"] = result.get("expires_in", 3600) + int(time.time())
+
+        print("[AUTH] Token refreshed successfully", flush=True)
+        return result["access_token"]
+    except Exception as e:
+        print(f"[AUTH] Token refresh exception: {e}", flush=True)
+        return None
+
+
+def get_valid_token():
+    """Get a valid access token, refreshing if necessary. Returns (token, needs_reauth)."""
+    token = session.get("access_token")
+    expires_at = session.get("token_expires_at", 0)
+
+    if not token:
+        return None, True
+
+    # Check if token is expired or will expire in next 5 minutes
+    if time.time() >= (expires_at - 300):
+        print("[AUTH] Token expired or expiring soon, attempting refresh", flush=True)
+        new_token = refresh_access_token()
+        if new_token:
+            return new_token, False
+        else:
+            return None, True
+
+    return token, False

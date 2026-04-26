@@ -174,32 +174,106 @@ class ReplyService:
             "+86 123 456 7890"
         )
 
-    def _generate_order_cancellation_template_reply(self, sender: str) -> str:
+    def _generate_order_cancellation_template_reply(self, sender: str, body: str) -> str:
+        from services.order_service import get_order_service, OrderNotFoundError
+
         customer_name = self._extract_sender_local_part(sender)
+        order_number = self._extract_order_number_from_text(body)
+
+        # Try to validate order
+        if order_number:
+            try:
+                order_service = get_order_service()
+                order = order_service.validate_order_ownership(order_number, sender)
+
+                # Update order status to cancelled
+                order_service.update_order_status(order_number, order_status="cancelled")
+
+                order_info = order_service.format_order_info(order, language="zh")
+
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    f"感谢您的来信。我们已经收到您的取消订单请求，订单信息如下：\n\n"
+                    f"{order_info}\n\n"
+                    "我们将尽快处理您的退款申请。退款预计将在七个工作日内完成，"
+                    "您将收到相应的退款通知。如果有任何问题，您可以随时联系客户服务团队。\n\n"
+                    "我们为此次不便向您表示歉意，并感谢您的理解。\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd.\n"
+                    "+86 123 456 7890"
+                )
+            except OrderNotFoundError:
+                # Order not found or doesn't belong to customer
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    f"感谢您的来信。关于您提到的订单 {order_number}，我们在系统中未能找到相关记录，"
+                    "或该订单不属于您的账户。\n\n"
+                    "请您核实订单号是否正确，或联系我们的客服团队获取进一步帮助。\n\n"
+                    "客服热线：+86 123 456 7890\n"
+                    "客服邮箱：support@mis2001.com\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd."
+                )
+
+        # No order number found in email
         return (
             f"尊敬的 {customer_name}，\n\n"
-            "感谢您的来信。我们已经收到您的取消订单请求，并将尽快处理您的退款申请。\n\n"
-            "退款预计将在七个工作日内完成，您将收到相应的退款通知。如果有任何问题，您可以随时联系客户服务团队。\n\n"
-            "我们为此次不便向您表示歉意，并感谢您的理解。\n\n"
+            "感谢您的来信。为了更好地处理您的取消订单请求，请您提供以下信息：\n\n"
+            "- 订单号（格式如：ORD123456）\n"
+            "- 订单日期\n\n"
+            "收到您的订单信息后，我们将立即为您处理。\n\n"
             "此致，\n"
             "MIS2001 Dev Ltd.\n"
             "+86 123 456 7890"
         )
 
-    def _generate_order_tracking_template_reply(self, sender: str) -> str:
-        customer_name = self._extract_sender_local_part(sender)
-        order_id = self._generate_order_number()
-        current_status = "运输中"
-        eta_date = "2026/3/16"
+    def _generate_order_tracking_template_reply(self, sender: str, body: str) -> str:
+        from services.order_service import get_order_service, OrderNotFoundError
 
+        customer_name = self._extract_sender_local_part(sender)
+        order_number = self._extract_order_number_from_text(body)
+
+        # Try to validate order
+        if order_number:
+            try:
+                order_service = get_order_service()
+                order = order_service.validate_order_ownership(order_number, sender)
+
+                order_info = order_service.format_order_info(order, language="zh")
+
+                # Add ETA if in transit
+                eta_info = ""
+                if order['shipping_status'] == 'in_transit':
+                    eta_info = "\n- 预计到达日期：2026/5/15"
+
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    "感谢您的来信。以下是您订单的当前物流状态：\n\n"
+                    f"{order_info}{eta_info}\n\n"
+                    "如需更多帮助，您可以随时通过我们的客服热线或邮件联系我们。\n\n"
+                    "感谢您的耐心等待，祝您有愉快的一天！\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd.\n"
+                    "+86 123 456 7890"
+                )
+            except OrderNotFoundError:
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    f"感谢您的来信。关于您查询的订单 {order_number}，我们在系统中未能找到相关记录。\n\n"
+                    "请您核实订单号是否正确，或提供以下信息以便我们查询：\n"
+                    "- 下单时使用的邮箱\n"
+                    "- 订单日期\n"
+                    "- 产品名称\n\n"
+                    "客服热线：+86 123 456 7890\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd."
+                )
+
+        # No order number found
         return (
             f"尊敬的 {customer_name}，\n\n"
-            "感谢您的来信。以下是您订单的当前物流状态：\n"
-            f"- 订单号：{order_id}\n"
-            f"- 当前状态：{current_status}\n"
-            f"- 预计到达日期：{eta_date}\n\n"
-            "如需更多帮助，您可以随时通过我们的客服热线或邮件联系我们。\n\n"
-            "感谢您的耐心等待，祝您有愉快的一天！\n\n"
+            "感谢您的来信。为了查询您的订单物流状态，请您提供订单号（格式如：ORD123456）。\n\n"
+            "您也可以登录我们的网站查询订单状态，或联系客服团队获取帮助。\n\n"
             "此致，\n"
             "MIS2001 Dev Ltd.\n"
             "+86 123 456 7890"
@@ -261,18 +335,59 @@ class ReplyService:
         return None
 
     def _generate_shipping_exception_template_reply(self, sender: str, body: str) -> str:
-        customer_name = self._extract_sender_local_part(sender)
-        order_id = self._extract_order_number_from_text(body) or self._generate_order_number()
-        exception_desc = self._summarize_exception_from_body(body)
-        solution = "请客户预约专人上门回收货物，公司会重新派送一批"
+        from services.order_service import get_order_service, OrderNotFoundError
 
+        customer_name = self._extract_sender_local_part(sender)
+        order_number = self._extract_order_number_from_text(body)
+        exception_desc = self._summarize_exception_from_body(body)
+
+        # Try to validate order
+        if order_number:
+            try:
+                order_service = get_order_service()
+                order = order_service.validate_order_ownership(order_number, sender)
+
+                # Update shipping status to exception
+                order_service.update_order_status(order_number, shipping_status="exception")
+
+                order_info = order_service.format_order_info(order, language="zh")
+                solution = "我们将安排专人与您联系，协调上门回收货物并重新派送"
+
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    f"感谢您的反馈。关于您的订单，我们注意到出现了运输异常情况：\n\n"
+                    f"{order_info}\n\n"
+                    f"- 异常情况：{exception_desc}\n"
+                    f"- 解决方案：{solution}\n\n"
+                    "我们深感抱歉给您带来的不便，并会尽快处理此问题。"
+                    "客服团队将在24小时内与您联系。\n\n"
+                    "再次为此给您带来的困扰表示歉意，感谢您的理解。\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd.\n"
+                    "+86 123 456 7890"
+                )
+            except OrderNotFoundError:
+                return (
+                    f"尊敬的 {customer_name}，\n\n"
+                    f"感谢您的反馈。关于您提到的订单 {order_number}，我们在系统中未能找到相关记录。\n\n"
+                    "为了更好地处理您的运输异常问题，请提供：\n"
+                    "- 正确的订单号\n"
+                    "- 物流单号（如有）\n"
+                    "- 异常情况描述\n\n"
+                    "我们将优先处理您的问题。客服热线：+86 123 456 7890\n\n"
+                    "此致，\n"
+                    "MIS2001 Dev Ltd."
+                )
+
+        # No order number found
         return (
             f"尊敬的 {customer_name}，\n\n"
-            f"感谢您的反馈。关于您的订单 {order_id}，我们注意到出现了以下运输异常情况：\n"
-            f"- 异常情况：{exception_desc}\n"
-            f"- 解决方案：{solution}\n\n"
-            "我们深感抱歉给您带来的不便，并会尽快处理此问题。您可以通过以下方式与我们进一步沟通：[二维码]\n\n"
-            "再次为此给您带来的困扰表示歉意，感谢您的理解。\n\n"
+            "感谢您的反馈。我们非常重视您遇到的运输问题。\n\n"
+            "为了快速处理，请您提供：\n"
+            "- 订单号（格式如：ORD123456）\n"
+            "- 物流单号（如有）\n"
+            "- 具体异常情况\n\n"
+            "收到信息后，我们将立即为您处理。\n\n"
             "此致，\n"
             "MIS2001 Dev Ltd.\n"
             "+86 123 456 7890"
@@ -292,10 +407,10 @@ class ReplyService:
             return self._generate_pricing_template_reply(sender, subject, body, received_at)
 
         if category == "order_cancellation":
-            return self._generate_order_cancellation_template_reply(sender)
+            return self._generate_order_cancellation_template_reply(sender, body)
 
         if category == "order_tracking":
-            return self._generate_order_tracking_template_reply(sender)
+            return self._generate_order_tracking_template_reply(sender, body)
 
         if category == "shipping_time":
             return self._generate_shipping_time_template_reply(sender)

@@ -53,6 +53,25 @@ def init_db():
                 operator    TEXT,
                 created_at  TEXT DEFAULT (datetime('now'))
             );
+
+            CREATE TABLE IF NOT EXISTS orders (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_number    TEXT UNIQUE NOT NULL,
+                customer_email  TEXT NOT NULL,
+                product_name    TEXT,
+                quantity        INTEGER,
+                total_amount    REAL,
+                currency        TEXT DEFAULT 'CNY',
+                order_status    TEXT DEFAULT 'pending',
+                shipping_status TEXT DEFAULT 'not_shipped',
+                tracking_number TEXT,
+                destination     TEXT,
+                created_at      TEXT DEFAULT (datetime('now')),
+                updated_at      TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_orders_number ON orders(order_number);
+            CREATE INDEX IF NOT EXISTS idx_orders_email ON orders(customer_email);
         """)
         _ensure_column(conn, "emails", "retry_count", "INTEGER DEFAULT 0")
         _ensure_column(conn, "emails", "last_error", "TEXT")

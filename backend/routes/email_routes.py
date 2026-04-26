@@ -13,6 +13,7 @@ from services.graph_service import GraphService, EmailSendError
 
 from services.classification_service import ClassificationService
 from services.reply_service import ReplyService
+from routes.auth_routes import get_valid_token
 
 email_bp = Blueprint("email", __name__)
 
@@ -22,8 +23,8 @@ reply_svc = ReplyService()
 
 def _require_auth():
     """Return (access_token, user_email) or raise if not authenticated."""
-    token = session.get("access_token")
-    if not token:
+    token, needs_reauth = get_valid_token()
+    if not token or needs_reauth:
         return None, None
     user = session.get("user", {})
     email = user.get("preferred_username", user.get("email", "system"))
