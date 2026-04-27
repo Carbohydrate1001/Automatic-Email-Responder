@@ -18,9 +18,9 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = Config.SECRET_KEY
 
-    # Cookie 跨端口兼容（开发环境）
-    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-    app.config["SESSION_COOKIE_SECURE"] = False
+    is_production = Config.FRONTEND_URL.startswith("https://")
+    app.config["SESSION_COOKIE_SAMESITE"] = "None" if is_production else "Lax"
+    app.config["SESSION_COOKIE_SECURE"] = is_production
     app.config["SESSION_COOKIE_HTTPONLY"] = True
 
     # Enable CORS for Vue.js frontend (dev on port 5173)
