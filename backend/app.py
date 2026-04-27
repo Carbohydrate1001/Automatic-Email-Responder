@@ -50,6 +50,6 @@ if __name__ == "__main__":
     app = create_app()
     print("=" * 60)
     print("  Automated Customer Service Email Reply System")
-    print(f"  Server running at: http://127.0.0.1:{Config.PORT}")
+    print(f"  Server running at: http://0.0.0.0:{Config.PORT}")
     print("=" * 60)
-    app.run(debug=Config.DEBUG, port=Config.PORT)
+    app.run(host='0.0.0.0', debug=Config.DEBUG, port=Config.PORT)
