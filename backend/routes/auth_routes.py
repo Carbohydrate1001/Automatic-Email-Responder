@@ -71,7 +71,7 @@ def callback():
     session["user"] = result.get("id_token_claims", {})
 
     # Redirect to frontend
-    return redirect("http://localhost:5173/emails")
+    return redirect(f"{Config.FRONTEND_URL}/emails")
 
 
 @auth_bp.route("/logout")
@@ -80,7 +80,7 @@ def logout():
     session.clear()
     logout_url = (
         f"https://login.microsoftonline.com/{Config.AZURE_TENANT_ID}/oauth2/v2.0/logout"
-        "?post_logout_redirect_uri=http://localhost:5173/login"
+        f"?post_logout_redirect_uri={Config.FRONTEND_URL}/login"
     )
     return redirect(logout_url)
 
