@@ -80,14 +80,14 @@
           <!-- 分类评分详情 (新增) -->
           <RubricScoresCard
             v-if="email?.classification_rubric_scores"
-            title="分类评分详情"
+            :title="t('rubricScores.classificationTitle')"
             :scores="email.classification_rubric_scores"
           />
 
           <!-- 自动发送评分详情 (新增) -->
           <RubricScoresCard
             v-if="email?.auto_send_rubric_scores"
-            title="自动发送评分"
+            :title="t('rubricScores.autoSendTitle')"
             :scores="email.auto_send_rubric_scores"
           />
 

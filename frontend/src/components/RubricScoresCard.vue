@@ -17,7 +17,7 @@
         <p class="text-2xl font-bold text-slate-800">
           {{ scores.weighted_score.toFixed(2) }}<span class="text-sm text-slate-400">/3.0</span>
         </p>
-        <p class="text-xs text-slate-500 mt-1">加权总分</p>
+        <p class="text-xs text-slate-500 mt-1">{{ t('rubricScores.weightedScore') }}</p>
       </div>
     </div>
 
@@ -31,7 +31,7 @@
         <template #title>
           <div class="flex items-center justify-between w-full pr-4">
             <span class="text-sm font-medium text-slate-700">
-              {{ RUBRIC_DIMENSION_LABELS[dimension] || dimension }}
+              {{ t(`rubricDimensions.${dimension}`, dimension) }}
             </span>
             <el-tag
               :type="getScoreTagType(data.score)"
@@ -58,10 +58,10 @@
           :type="scores.auto_send_recommended ? 'success' : 'warning'"
           size="small"
         >
-          {{ scores.auto_send_recommended ? '建议自动发送' : '建议人工审核' }}
+          {{ scores.auto_send_recommended ? t('rubricScores.recommendAutoSend') : t('rubricScores.recommendManualReview') }}
         </el-tag>
         <span class="text-xs text-slate-400">
-          (阈值: {{ scores.thresholds_applied?.auto_send_minimum || 2.5 }}/3.0)
+          ({{ t('rubricScores.threshold') }}: {{ scores.thresholds_applied?.auto_send_minimum || 2.5 }}/3.0)
         </span>
       </div>
     </div>
@@ -69,7 +69,9 @@
 </template>
 
 <script setup lang="ts">
-import { RUBRIC_DIMENSION_LABELS } from '../types/index'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   title: string

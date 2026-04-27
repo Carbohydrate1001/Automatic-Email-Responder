@@ -100,20 +100,6 @@ export const STATUS_LABELS: Record<string, string> = {
   ignored_no_reply: '已忽略（无需回复）',
 }
 
-export const RUBRIC_DIMENSION_LABELS: Record<string, string> = {
-  // 分类评分维度
-  keyword_match: '关键词匹配',
-  intent_clarity: '意图清晰度',
-  context_completeness: '上下文完整性',
-  exclusion_confidence: '排他性置信度',
-
-  // 自动发送评分维度
-  information_completeness: '信息完整性',
-  risk_level: '风险等级',
-  template_applicability: '模板适用性',
-  policy_alignment: '政策一致性',
-}
-
 // 匹配数据接口
 export interface MatchedData {
   order?: {
