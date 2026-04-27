@@ -218,22 +218,33 @@ class ScoringService:
 
         result = json.loads(response.choices[0].message.content)
 
-        # Validate and normalize scores
+        # Validate and normalize scores - ensure {score, reasoning} structure
         scores = result.get('scores', {})
+        normalized_scores = {}
+        score_values = {}
+
         for dim_name, dim_data in scores.items():
             if isinstance(dim_data, dict):
                 score = dim_data.get('score', 0)
+                reasoning = dim_data.get('reasoning', '')
             else:
                 score = dim_data
-            scores[dim_name] = max(0, min(3, int(score)))
+                reasoning = ''
+
+            normalized_score = max(0, min(3, int(score)))
+            normalized_scores[dim_name] = {
+                'score': normalized_score,
+                'reasoning': reasoning
+            }
+            score_values[dim_name] = normalized_score
 
         # Recalculate weighted score to ensure consistency
         dimensions = rubric['dimensions']
-        weighted_score = self._calculate_weighted_score(scores, dimensions)
+        weighted_score = self._calculate_weighted_score(score_values, dimensions)
         confidence = self._score_to_confidence(weighted_score, apply_calibration=False)
 
         return {
-            'scores': result.get('scores', {}),
+            'scores': normalized_scores,
             'weighted_score': round(weighted_score, 2),
             'confidence': round(confidence, 2),
             'rubric_version': rubric.get('version', '1.0')
@@ -426,22 +437,33 @@ class ScoringService:
 
         result = json.loads(response.choices[0].message.content)
 
-        # Validate and normalize scores
+        # Validate and normalize scores - ensure {score, reasoning} structure
         scores = result.get('scores', {})
+        normalized_scores = {}
+        score_values = {}
+
         for dim_name, dim_data in scores.items():
             if isinstance(dim_data, dict):
                 score = dim_data.get('score', 0)
+                reasoning = dim_data.get('reasoning', '')
             else:
                 score = dim_data
-            scores[dim_name] = max(0, min(3, int(score)))
+                reasoning = ''
+
+            normalized_score = max(0, min(3, int(score)))
+            normalized_scores[dim_name] = {
+                'score': normalized_score,
+                'reasoning': reasoning
+            }
+            score_values[dim_name] = normalized_score
 
         # Recalculate weighted score
         dimensions = rubric['dimensions']
-        weighted_score = self._calculate_weighted_score(scores, dimensions)
+        weighted_score = self._calculate_weighted_score(score_values, dimensions)
         confidence = self._score_to_confidence(weighted_score, apply_calibration=False)
 
         return {
-            'scores': result.get('scores', {}),
+            'scores': normalized_scores,
             'weighted_score': round(weighted_score, 2),
             'confidence': round(confidence, 2),
             'rubric_version': rubric.get('version', '1.0')
