@@ -36,10 +36,8 @@ services:
         sync: false  # Set to https://your-frontend.onrender.com after frontend deployment
 
   # Frontend Static Site (Vue.js)
-  - type: web
+  - type: static
     name: email-responder-frontend
-    runtime: static
-    plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     routes:
