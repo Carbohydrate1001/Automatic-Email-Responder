@@ -24,7 +24,7 @@ def create_app():
     app.config["SESSION_COOKIE_HTTPONLY"] = True
 
     # Enable CORS for Vue.js frontend (dev on port 5173)
-    CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+    CORS(app, supports_credentials=True, origins=[Config.FRONTEND_URL])
 
     # Initialize database
     init_db()
@@ -38,6 +38,10 @@ def create_app():
     @app.route("/")
     def index():
         return {"message": "Automated Email Reply System API", "status": "running"}
+
+    @app.route("/health")
+    def health():
+        return {"status": "ok"}
 
     return app
 

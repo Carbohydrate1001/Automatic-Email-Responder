@@ -57,3 +57,6 @@ class Config:
     # Demo mode - prevents database modifications to preserve test data
     DEMO_MODE = os.getenv("DEMO_MODE", "True").lower() in ("true", "1", "yes")
 
+    # Frontend URL for CORS configuration
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+

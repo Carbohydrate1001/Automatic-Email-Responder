@@ -1,0 +1,51 @@
+services:
+  # Backend Web Service (Python Flask)
+  - type: web
+    name: email-responder-backend
+    runtime: python
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && python app.py
+    healthCheckPath: /health
+    envVars:
+      - key: FLASK_SECRET_KEY
+        value: demo-secret-key-for-classroom
+      - key: FLASK_DEBUG
+        value: False
+      - key: FLASK_PORT
+        value: 10000
+      - key: AZURE_CLIENT_ID
+        sync: false  # Set manually in Render dashboard
+      - key: AZURE_CLIENT_SECRET
+        sync: false  # Set manually in Render dashboard
+      - key: AZURE_TENANT_ID
+        value: consumers
+      - key: AZURE_REDIRECT_URI
+        sync: false  # Set to https://your-backend.onrender.com/auth/callback
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: OPENAI_BASE_URL
+        value: https://api.n1n.ai/v1
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: CONFIDENCE_THRESHOLD
+        value: 0.75
+      - key: DEMO_MODE
+        value: True
+      - key: FRONTEND_URL
+        sync: false  # Set to https://your-frontend.onrender.com after frontend deployment
+
+  # Frontend Static Site (Vue.js)
+  - type: web
+    name: email-responder-frontend
+    runtime: static
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false  # Set to https://your-backend.onrender.com

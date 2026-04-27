@@ -2,7 +2,7 @@ import axios from 'axios'
 import router from '../router/index'
 
 const api = axios.create({
-  baseURL: 'http://localhost:5005',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005',
   withCredentials: true,
   timeout: 30000,
 })
@@ -23,8 +23,8 @@ api.interceptors.response.use(
 export const authApi = {
   getStatus: () => api.get('/auth/status'),
   getMe: () => api.get('/auth/me'),
-  login: () => { window.location.href = 'http://localhost:5005/auth/login' },
-  logout: () => { window.location.href = 'http://localhost:5005/auth/logout' },
+  login: () => { window.location.href = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005'}/auth/login` },
+  logout: () => { window.location.href = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005'}/auth/logout` },
 }
 
 // --- Email APIs ---
