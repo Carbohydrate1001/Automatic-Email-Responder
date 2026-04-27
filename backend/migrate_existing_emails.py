@@ -1,5 +1,5 @@
 """
-One-time migration script to assign existing emails to centauri47@outlook.com
+One-time migration script to assign existing emails to centauric47@outlook.com
 Run this once after deploying the user isolation fix.
 """
 
@@ -8,7 +8,7 @@ from config import Config
 from models.database import init_db
 
 def migrate_existing_emails():
-    """Assign all existing emails with NULL user_email to centauri47@outlook.com"""
+    """Assign all existing emails with NULL user_email to centauric47@outlook.com"""
 
     # First, ensure the user_email column exists
     print("Running database initialization to ensure user_email column exists...")
@@ -30,10 +30,10 @@ def migrate_existing_emails():
             print("No emails to migrate. All emails already have user_email assigned.")
             return
 
-        # Update all NULL user_email to centauri47@outlook.com
+        # Update all NULL user_email to centauric47@outlook.com
         conn.execute(
             """UPDATE emails
-               SET user_email = 'centauri47@outlook.com'
+               SET user_email = 'centauric47@outlook.com'
                WHERE user_email IS NULL"""
         )
 
@@ -41,11 +41,11 @@ def migrate_existing_emails():
 
         # Verify the update
         updated_count = conn.execute(
-            "SELECT COUNT(*) as cnt FROM emails WHERE user_email = 'centauri47@outlook.com'"
+            "SELECT COUNT(*) as cnt FROM emails WHERE user_email = 'centauric47@outlook.com'"
         ).fetchone()["cnt"]
 
-        print(f"Successfully migrated {null_count} emails to centauri47@outlook.com")
-        print(f"Total emails for centauri47@outlook.com: {updated_count}")
+        print(f"Successfully migrated {null_count} emails to centauric47@outlook.com")
+        print(f"Total emails for centauric47@outlook.com: {updated_count}")
 
     except Exception as e:
         print(f"Migration failed: {e}")
@@ -58,7 +58,7 @@ def migrate_existing_emails():
 if __name__ == "__main__":
     print("=" * 60)
     print("  Email User Migration Script")
-    print("  Assigning existing emails to: centauri47@outlook.com")
+    print("  Assigning existing emails to: centauric47@outlook.com")
     print("=" * 60)
 
     migrate_existing_emails()
