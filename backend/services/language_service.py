@@ -50,9 +50,55 @@ def _is_latin(char: str) -> bool:
 class LanguageService:
     """Detects language and provides language-aware routing."""
 
+    def _preprocess_for_detection(self, text: str) -> str:
+        """
+        Preprocess text to remove noise that interferes with language detection.
+        Strips HTML tags, email addresses, URLs, quoted text, and signatures.
+        """
+        if not text:
+            return ""
+
+        # Strip HTML tags
+        text = re.sub(r'<[^>]+>', ' ', text)
+
+        # Remove email addresses (they're always Latin characters)
+        text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', ' ', text)
+
+        # Remove URLs
+        text = re.sub(r'https?://[^\s]+', ' ', text)
+        text = re.sub(r'www\.[^\s]+', ' ', text)
+
+        # Remove quoted text markers (>, |, etc. at line start)
+        text = re.sub(r'^[>|]+.*$', '', text, flags=re.MULTILINE)
+
+        # Remove common email signature patterns (English)
+        signature_patterns = [
+            r'(?i)best regards.*$',
+            r'(?i)sincerely.*$',
+            r'(?i)kind regards.*$',
+            r'(?i)thanks.*$',
+            r'(?i)sent from my.*$',
+            r'(?i)get outlook for.*$',
+        ]
+        for pattern in signature_patterns:
+            text = re.sub(pattern, '', text, flags=re.MULTILINE | re.DOTALL)
+
+        # Remove common Chinese signature patterns
+        text = re.sub(r'此致.*$', '', text, flags=re.MULTILINE | re.DOTALL)
+        text = re.sub(r'敬上.*$', '', text, flags=re.MULTILINE | re.DOTALL)
+
+        # Remove phone numbers (international format)
+        text = re.sub(r'\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}', ' ', text)
+
+        return text
+
     def detect_language(self, text: str) -> Dict[str, Any]:
         """
         Detect the primary language of the text.
+
+        Uses asymmetric detection: CJK presence is a strong signal for Chinese,
+        since English emails rarely contain CJK characters, but Chinese business
+        emails frequently contain English (company names, product codes, etc.).
 
         Returns:
             Dict with language code, confidence, and character breakdown.
@@ -60,7 +106,11 @@ class LanguageService:
         if not text or not text.strip():
             return {'language': Language.UNKNOWN, 'confidence': 0.0, 'details': {}}
 
-        cleaned = re.sub(r'[\s\d\W]+', '', text)
+        # Preprocess: strip HTML tags, email addresses, URLs, and common noise
+        preprocessed = self._preprocess_for_detection(text)
+
+        # Remove whitespace, digits, and punctuation for character analysis
+        cleaned = re.sub(r'[\s\d\W]+', '', preprocessed)
         if not cleaned:
             return {'language': Language.UNKNOWN, 'confidence': 0.0, 'details': {}}
 
@@ -71,24 +121,30 @@ class LanguageService:
         cjk_ratio = cjk_count / total
         latin_ratio = latin_count / total
 
-        if cjk_ratio > 0.5:
+        # Asymmetric detection: CJK presence is a strong signal for Chinese
+        # Even 15% CJK characters likely means a Chinese email with English mixed in
+        if cjk_ratio >= 0.15:
             language = Language.CHINESE
-            confidence = min(0.95, 0.5 + cjk_ratio * 0.5)
-        elif latin_ratio > 0.5:
-            language = Language.ENGLISH
-            confidence = min(0.95, 0.5 + latin_ratio * 0.5)
-        elif cjk_ratio > 0.2 and latin_ratio > 0.2:
+            confidence = min(0.95, 0.6 + cjk_ratio * 0.4)
+        elif cjk_ratio > 0.05:
+            # Some CJK but not much - likely mixed, lean toward Chinese
             language = Language.MIXED
             confidence = 0.7
-        elif cjk_ratio > latin_ratio:
-            language = Language.CHINESE
-            confidence = 0.6
-        elif latin_ratio > cjk_ratio:
+            # Store which language dominates for mixed handling
+            primary = Language.CHINESE if cjk_ratio >= latin_ratio * 0.3 else Language.ENGLISH
+        elif latin_ratio > 0.7:
+            # Strongly Latin with no CJK - English
             language = Language.ENGLISH
-            confidence = 0.6
+            confidence = min(0.95, 0.5 + latin_ratio * 0.5)
+        elif latin_ratio > 0.4:
+            # Moderately Latin with no CJK - probably English
+            language = Language.ENGLISH
+            confidence = 0.75
         else:
+            # Not enough signal
             language = Language.UNKNOWN
             confidence = 0.3
+            primary = Language.CHINESE  # Default to Chinese when unknown
 
         result = {
             'language': language,
@@ -102,9 +158,15 @@ class LanguageService:
             }
         }
 
+        # Add primary_language for mixed content handling
+        if language == Language.MIXED:
+            result['details']['primary_language'] = primary
+
         logger.info("Language detected", {
             'language': language,
-            'confidence': result['confidence']
+            'confidence': result['confidence'],
+            'cjk_ratio': cjk_ratio,
+            'latin_ratio': latin_ratio
         })
 
         return result
@@ -114,7 +176,9 @@ class LanguageService:
         result = self.detect_language(text)
         lang = result['language']
         if lang == Language.MIXED:
-            return Language.CHINESE if result['details']['cjk_ratio'] >= result['details']['latin_ratio'] else Language.ENGLISH
+            return result['details'].get('primary_language', Language.CHINESE)
+        if lang == Language.UNKNOWN:
+            return Language.CHINESE
         return lang
 
     def get_reply_language(self, subject: str, body: str) -> str:

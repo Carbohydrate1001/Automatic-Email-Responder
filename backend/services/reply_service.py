@@ -777,22 +777,9 @@ class ReplyService:
         # Detect language early
         from services.language_service import get_language_service
         lang_service = get_language_service()
-        full_text = f"{subject or ''}\n{body or ''}"
-        lang_result = lang_service.detect_language(full_text)
-        detected_language = lang_result.get('language', 'unknown')
+        language = lang_service.get_reply_language(subject, body)
+        lang_result = lang_service.detect_language(f"{subject or ''}\n{body or ''}")
         language_confidence = lang_result.get('confidence', 0.0)
-
-        # Map to supported languages (zh/en only)
-        if detected_language == 'zh':
-            language = 'zh'
-        elif detected_language == 'en':
-            language = 'en'
-        elif detected_language == 'mixed':
-            # Use primary language
-            primary = lang_result.get('details', {}).get('primary_language', 'zh')
-            language = 'zh' if primary == 'zh' else 'en'
-        else:
-            language = 'zh'  # Default to Chinese
 
         # Update self.language for reply generation
         self.language = language
