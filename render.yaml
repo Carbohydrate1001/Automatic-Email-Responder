@@ -35,15 +35,3 @@ services:
       - key: FRONTEND_URL
         sync: false  # Set to https://your-frontend.onrender.com after frontend deployment
 
-  # Frontend Static Site (Vue.js)
-  - type: static
-    name: email-responder-frontend
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_BASE_URL
-        sync: false  # Set to https://your-backend.onrender.com

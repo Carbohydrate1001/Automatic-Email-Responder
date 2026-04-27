@@ -34,15 +34,15 @@ Before starting, make sure you have:
 1. Render will automatically detect your `render.yaml` file
 2. You'll see a preview showing:
    - **email-responder-backend** (Web Service)
-   - **email-responder-frontend** (Static Site)
 3. Review the configuration
-4. Click **"Apply"** to create both services
+4. Click **"Apply"** to create the backend service
 
 **What happens next:**
-- Render creates two services simultaneously
+- Render creates the backend service
 - Backend starts installing Python dependencies (~3-5 minutes)
-- Frontend starts installing npm packages and building (~2-3 minutes)
-- You'll see both services in your dashboard
+- You'll see the service in your dashboard
+
+**Note:** The frontend will be deployed manually in the next steps (Render Blueprints don't support static sites yet).
 
 ---
 
@@ -128,18 +128,55 @@ Value: https://email-responder-frontend.onrender.com
 
 ## Part 3: Configure Frontend Service
 
-### Step 7: Get Frontend URL
+### Step 7: Create Frontend Static Site Manually
 
-1. Go back to Render Dashboard
-2. Click on **"email-responder-frontend"**
-3. Wait for the build to complete (status: "Live")
-4. At the top, you'll see your frontend URL:
+Since Render Blueprints don't support static sites, we'll create the frontend manually:
+
+1. Go back to your Render Dashboard
+2. Click **"New +"** button in the top right
+3. Select **"Static Site"** from the dropdown
+4. Connect to your GitHub repository (if not already connected)
+5. Select your repository: `Automatic-Email-Responder`
+6. Click **"Connect"**
+
+**Configure the static site:**
+
+- **Name:** `email-responder-frontend`
+- **Branch:** `main` (or your default branch)
+- **Root Directory:** Leave empty (or just `/`)
+- **Build Command:** 
+  ```
+  cd frontend && npm install && npm run build
+  ```
+- **Publish Directory:** 
+  ```
+  frontend/dist
+  ```
+
+7. Click **"Create Static Site"**
+
+**Add Rewrite Rule for Vue Router:**
+
+1. After the site is created, scroll down to **"Redirects/Rewrites"** section
+2. Click **"Add Rule"**
+3. Configure:
+   - **Source:** `/*`
+   - **Destination:** `/index.html`
+   - **Action:** `Rewrite`
+4. Click **"Save"**
+
+This ensures Vue Router works correctly with direct URL access.
+
+### Step 8: Get Frontend URL
+
+1. In the frontend static site page, wait for the build to complete (status: "Live")
+2. At the top, you'll see your frontend URL:
    ```
    https://email-responder-frontend.onrender.com
    ```
-5. **Copy this URL** - you'll need it
+3. **Copy this URL** - you'll need it
 
-### Step 8: Configure Frontend Environment Variable
+### Step 9: Configure Frontend Environment Variable
 
 1. In the frontend service page, click **"Environment"** in the left sidebar
 2. Click **"Add Environment Variable"**
@@ -152,7 +189,7 @@ Value: https://email-responder-frontend.onrender.com
 4. Click **"Save Changes"**
 5. Render will automatically rebuild and redeploy the frontend (~2-3 minutes)
 
-### Step 9: Update Backend with Frontend URL
+### Step 10: Update Backend with Frontend URL
 
 1. Go back to **"email-responder-backend"** service
 2. Click **"Environment"** in the left sidebar
@@ -169,7 +206,7 @@ Value: https://email-responder-frontend.onrender.com
 
 ## Part 4: Update Azure App Registration
 
-### Step 10: Add Production Redirect URI
+### Step 11: Add Production Redirect URI
 
 1. Go to **Azure Portal**: https://portal.azure.com
 2. Navigate to **Azure Active Directory** → **App registrations**
@@ -192,7 +229,7 @@ Value: https://email-responder-frontend.onrender.com
 
 ## Part 5: Verification and Testing
 
-### Step 11: Test Backend Endpoints
+### Step 12: Test Backend Endpoints
 
 Open these URLs in your browser:
 
@@ -214,7 +251,7 @@ Open these URLs in your browser:
    ```
    Expected: `{"authenticated": false}` (before login)
 
-### Step 12: Test Frontend Application
+### Step 13: Test Frontend Application
 
 1. Open your frontend URL in a browser:
    ```
@@ -231,7 +268,7 @@ Open these URLs in your browser:
    - Click login button
    - Verify requests are going to your backend URL
 
-### Step 13: Test Full Authentication Flow
+### Step 14: Test Full Authentication Flow
 
 1. On the frontend, click **"Login with Microsoft"**
 2. You'll be redirected to Microsoft login page
@@ -244,7 +281,7 @@ Open these URLs in your browser:
 - Check backend logs in Render dashboard
 - Verify `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` are correct
 
-### Step 14: Test Email Functionality
+### Step 15: Test Email Functionality
 
 1. Click **"Fetch Emails"** button
 2. System should fetch emails from your Outlook inbox
@@ -293,7 +330,7 @@ If you need to redeploy manually:
 
 ## Part 7: Sharing with Students
 
-### Step 15: Prepare for Classroom Demo
+### Step 16: Prepare for Classroom Demo
 
 1. **Get your frontend URL:**
    ```
@@ -316,7 +353,7 @@ If you need to redeploy manually:
    - Send it in chat/email
    - Students can access it directly from any device
 
-### Step 16: Classroom Demo Tips
+### Step 17: Classroom Demo Tips
 
 **Before class:**
 - [ ] Test the deployment 30 minutes before class
