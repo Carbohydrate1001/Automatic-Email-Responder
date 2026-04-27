@@ -120,6 +120,10 @@ def init_db():
         _ensure_column(conn, "emails", "language", "TEXT DEFAULT 'unknown'")
         _ensure_column(conn, "emails", "language_confidence", "REAL DEFAULT 0.0")
 
+        # User isolation - track email owner
+        _ensure_column(conn, "emails", "user_email", "TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_emails_user ON emails(user_email)")
+
         conn.commit()
 
 

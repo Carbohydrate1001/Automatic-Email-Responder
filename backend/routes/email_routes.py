@@ -93,6 +93,7 @@ def fetch_emails():
                 classification=classification,
                 graph_service=graph,
                 operator=operator,
+                user_email=operator,
             )
             processed.append(result)
             status = result.get("status", "pending_review")
@@ -145,7 +146,7 @@ def fetch_emails():
 # ---------------------------------------------------------------------------
 @email_bp.route("/emails", methods=["GET"])
 def list_emails():
-    token, _ = _require_auth()
+    token, user_email = _require_auth()
     if not token:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -157,8 +158,8 @@ def list_emails():
 
     offset = (page - 1) * per_page
 
-    where_clauses = ["e.is_deleted = 0"]
-    params = []
+    where_clauses = ["e.is_deleted = 0", "e.user_email = ?"]
+    params = [user_email]
 
     if status_filter:
         where_clauses.append("e.status = ?")
@@ -205,7 +206,7 @@ def list_emails():
 # ---------------------------------------------------------------------------
 @email_bp.route("/emails/<int:email_id>", methods=["GET"])
 def get_email(email_id):
-    token, _ = _require_auth()
+    token, user_email = _require_auth()
     if not token:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -215,13 +216,13 @@ def get_email(email_id):
             SELECT e.*, r.reply_text, r.sent_at
             FROM emails e
             LEFT JOIN replies r ON r.email_id = e.id
-            WHERE e.id = ?
+            WHERE e.id = ? AND e.user_email = ?
             """,
-            (email_id,),
+            (email_id, user_email),
         ).fetchone()
 
     if not row:
-        return jsonify({"error": "Email not found"}), 404
+        return jsonify({"error": "Email not found or access denied"}), 404
 
     return jsonify(dict(row))
 
@@ -237,12 +238,12 @@ def approve_email(email_id):
 
     with get_db_connection() as conn:
         row = conn.execute(
-            "SELECT e.*, r.reply_text FROM emails e LEFT JOIN replies r ON r.email_id = e.id WHERE e.id = ?",
-            (email_id,),
+            "SELECT e.*, r.reply_text FROM emails e LEFT JOIN replies r ON r.email_id = e.id WHERE e.id = ? AND e.user_email = ?",
+            (email_id, operator),
         ).fetchone()
 
         if not row:
-            return jsonify({"error": "Email not found"}), 404
+            return jsonify({"error": "Email not found or access denied"}), 404
 
         if row["status"] not in ("pending_review", "send_failed"):
             return jsonify({"error": f"Cannot approve email with status '{row['status']}'"}), 400
@@ -325,11 +326,11 @@ def reject_email(email_id):
 
     with get_db_connection() as conn:
         row = conn.execute(
-            "SELECT id, status FROM emails WHERE id = ?", (email_id,)
+            "SELECT id, status FROM emails WHERE id = ? AND user_email = ?", (email_id, operator)
         ).fetchone()
 
         if not row:
-            return jsonify({"error": "Email not found"}), 404
+            return jsonify({"error": "Email not found or access denied"}), 404
 
         if row["status"] not in ("pending_review", "send_failed"):
             return jsonify({"error": f"Cannot reject email with status '{row['status']}'"}), 400
@@ -352,23 +353,23 @@ def reject_email(email_id):
 # ---------------------------------------------------------------------------
 @email_bp.route("/stats", methods=["GET"])
 def get_stats():
-    token, _ = _require_auth()
+    token, user_email = _require_auth()
     if not token:
         return jsonify({"error": "Not authenticated"}), 401
 
     with get_db_connection() as conn:
-        total = conn.execute("SELECT COUNT(*) as cnt FROM emails").fetchone()["cnt"]
+        total = conn.execute("SELECT COUNT(*) as cnt FROM emails WHERE user_email = ?", (user_email,)).fetchone()["cnt"]
 
         status_rows = conn.execute(
-            "SELECT status, COUNT(*) as cnt FROM emails GROUP BY status"
+            "SELECT status, COUNT(*) as cnt FROM emails WHERE user_email = ? GROUP BY status", (user_email,)
         ).fetchall()
 
         category_rows = conn.execute(
-            "SELECT category, COUNT(*) as cnt FROM emails GROUP BY category"
+            "SELECT category, COUNT(*) as cnt FROM emails WHERE user_email = ? GROUP BY category", (user_email,)
         ).fetchall()
 
         avg_confidence = conn.execute(
-            "SELECT AVG(confidence) as avg FROM emails"
+            "SELECT AVG(confidence) as avg FROM emails WHERE user_email = ?", (user_email,)
         ).fetchone()["avg"] or 0.0
 
         # Last 7 days daily counts
@@ -378,10 +379,10 @@ def get_stats():
                    SUM(CASE WHEN status IN ('auto_sent','approved') THEN 1 ELSE 0 END) as handled,
                    SUM(CASE WHEN status = 'pending_review' THEN 1 ELSE 0 END) as pending
             FROM emails
-            WHERE created_at >= date('now', '-6 days')
+            WHERE created_at >= date('now', '-6 days') AND user_email = ?
             GROUP BY day
             ORDER BY day
-            """
+            """, (user_email,)
         ).fetchall()
 
     status_map = {r["status"]: r["cnt"] for r in status_rows}
@@ -426,12 +427,12 @@ def delete_email(email_id):
 
     with get_db_connection() as conn:
         row = conn.execute(
-            "SELECT id, subject FROM emails WHERE id = ? AND is_deleted = 0",
-            (email_id,)
+            "SELECT id, subject FROM emails WHERE id = ? AND is_deleted = 0 AND user_email = ?",
+            (email_id, operator)
         ).fetchone()
 
         if not row:
-            return jsonify({"error": "Email not found or already deleted"}), 404
+            return jsonify({"error": "Email not found, already deleted, or access denied"}), 404
 
         # Soft delete
         conn.execute(
@@ -467,7 +468,16 @@ def bulk_delete_emails():
         return jsonify({"error": "email_ids array required"}), 400
 
     with get_db_connection() as conn:
+        # Verify all emails belong to current user
         placeholders = ",".join("?" * len(email_ids))
+        owned_count = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM emails WHERE id IN ({placeholders}) AND user_email = ? AND is_deleted = 0",
+            email_ids + [operator]
+        ).fetchone()["cnt"]
+
+        if owned_count != len(email_ids):
+            return jsonify({"error": "Some emails not found or access denied"}), 403
+
         conn.execute(
             f"""UPDATE emails
                 SET is_deleted = 1, deleted_at = datetime('now'), deleted_by = ?
@@ -505,14 +515,24 @@ def bulk_approve_emails():
     failed_ids = []
 
     with get_db_connection() as conn:
+        # Verify all emails belong to current user
+        placeholders = ",".join("?" * len(email_ids))
+        owned_count = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM emails WHERE id IN ({placeholders}) AND user_email = ?",
+            email_ids + [operator]
+        ).fetchone()["cnt"]
+
+        if owned_count != len(email_ids):
+            return jsonify({"error": "Some emails not found or access denied"}), 403
+
         for email_id in email_ids:
             row = conn.execute(
                 """SELECT e.*, r.reply_text
                    FROM emails e
                    LEFT JOIN replies r ON r.email_id = e.id
                    WHERE e.id = ? AND e.status IN ('pending_review', 'send_failed')
-                   AND e.is_deleted = 0""",
-                (email_id,)
+                   AND e.is_deleted = 0 AND e.user_email = ?""",
+                (email_id, operator)
             ).fetchone()
 
             if not row:
@@ -569,7 +589,16 @@ def bulk_reject_emails():
         return jsonify({"error": "email_ids required"}), 400
 
     with get_db_connection() as conn:
+        # Verify all emails belong to current user
         placeholders = ",".join("?" * len(email_ids))
+        owned_count = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM emails WHERE id IN ({placeholders}) AND user_email = ?",
+            email_ids + [operator]
+        ).fetchone()["cnt"]
+
+        if owned_count != len(email_ids):
+            return jsonify({"error": "Some emails not found or access denied"}), 403
+
         conn.execute(
             f"""UPDATE emails
                 SET status = 'rejected'
@@ -595,7 +624,7 @@ def bulk_reject_emails():
 @email_bp.route("/emails/export", methods=["GET"])
 def export_emails():
     """Export emails as CSV."""
-    token, _ = _require_auth()
+    token, user_email = _require_auth()
     if not token:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -604,8 +633,8 @@ def export_emails():
     category_filter = request.args.get("category")
     search = request.args.get("search", "").strip()
 
-    where_clauses = ["e.is_deleted = 0"]
-    params = []
+    where_clauses = ["e.is_deleted = 0", "e.user_email = ?"]
+    params = [user_email]
 
     if status_filter:
         where_clauses.append("e.status = ?")

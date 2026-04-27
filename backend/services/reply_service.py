@@ -768,6 +768,7 @@ class ReplyService:
         classification: dict,
         graph_service=None,
         operator: str = "system",
+        user_email: str = None,
     ) -> dict:
         """
         Full pipeline: persist email + reply, decide auto-send or pending_review.
@@ -897,8 +898,8 @@ class ReplyService:
                 INSERT INTO emails (message_id, subject, sender, received_at, body,
                                     category, confidence, reasoning, status, retry_count, last_error,
                                     classification_rubric_scores, auto_send_rubric_scores, rubric_version,
-                                    consent_status, pii_detected, pii_types, language, language_confidence)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    consent_status, pii_detected, pii_types, language, language_confidence, user_email)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(message_id) DO UPDATE SET
                     category=excluded.category,
                     confidence=excluded.confidence,
@@ -913,7 +914,8 @@ class ReplyService:
                     pii_detected=excluded.pii_detected,
                     pii_types=excluded.pii_types,
                     language=excluded.language,
-                    language_confidence=excluded.language_confidence
+                    language_confidence=excluded.language_confidence,
+                    user_email=excluded.user_email
                 """,
                 (message_id, subject, sender, received_at, body,
                  category, confidence, reasoning, status, retry_count, last_error,
@@ -924,7 +926,8 @@ class ReplyService:
                  1 if pii_detected else 0,
                  json.dumps(pii_types_found) if pii_types_found else None,
                  language,
-                 language_confidence),
+                 language_confidence,
+                 user_email),
 
             )
             email_row = conn.execute(
