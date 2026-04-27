@@ -63,6 +63,8 @@ export const emailApi = {
     search?: string
   }) => api.get('/api/emails/export', { params, responseType: 'blob' }),
 
+  getMatchedData: (id: number) => api.get(`/api/emails/${id}/matched-data`),
+
   getStats: () => api.get('/api/stats'),
 }
 

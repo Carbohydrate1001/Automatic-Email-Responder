@@ -224,7 +224,15 @@ def get_email(email_id):
     if not row:
         return jsonify({"error": "Email not found or access denied"}), 404
 
-    return jsonify(dict(row))
+    result = dict(row)
+
+    # 解析JSON字段
+    if result.get('classification_rubric_scores'):
+        result['classification_rubric_scores'] = json.loads(result['classification_rubric_scores'])
+    if result.get('auto_send_rubric_scores'):
+        result['auto_send_rubric_scores'] = json.loads(result['auto_send_rubric_scores'])
+
+    return jsonify(result)
 
 
 # ---------------------------------------------------------------------------
@@ -682,4 +690,76 @@ def export_emails():
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment; filename=emails_export.csv'}
     )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/emails/<id>/matched-data  – Get matched database content
+# ---------------------------------------------------------------------------
+@email_bp.route("/emails/<int:email_id>/matched-data", methods=["GET"])
+def get_matched_data(email_id):
+    """获取邮件匹配的数据库内容（订单或物流路线）"""
+    token, user_email = _require_auth()
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    with get_db_connection() as conn:
+        email = conn.execute(
+            "SELECT category, body, sender FROM emails WHERE id = ? AND user_email = ?",
+            (email_id, user_email)
+        ).fetchone()
+
+    if not email:
+        return jsonify({"error": "Email not found"}), 404
+
+    result = {"order": None, "logistics_route": None}
+
+    # 订单相关类别
+    if email['category'] in ['order_tracking', 'order_cancellation', 'billing_invoice',
+                             'shipping_time', 'shipping_exception']:
+        from services.reply_service import ReplyService
+        from services.order_service import get_order_service, OrderNotFoundError
+
+        reply_service = ReplyService()
+        order_number = reply_service._extract_order_number_from_text(email['body'])
+
+        if order_number:
+            try:
+                order_service = get_order_service()
+                order = order_service.validate_order_ownership(order_number, email['sender'])
+                result['order'] = dict(order) if order else None
+            except OrderNotFoundError:
+                pass
+
+    # 询价类别
+    elif email['category'] == 'pricing_inquiry':
+        from services.logistics_service import get_logistics_service
+        from services.reply_service import ReplyService
+
+        reply_service = ReplyService()
+        text = email['body'].lower()
+
+        # 提取路线信息
+        origin = reply_service._extract_city_name(text, is_origin=True)
+        destination = reply_service._extract_city_name(text, is_origin=False)
+
+        # 识别运输方式
+        shipping_method = None
+        if any(kw in text for kw in ['海运', 'sea freight', '整柜']):
+            shipping_method = 'sea_freight'
+        elif any(kw in text for kw in ['空运', 'air freight', '航空']):
+            shipping_method = 'air_freight'
+
+        if origin and destination and shipping_method:
+            try:
+                logistics_service = get_logistics_service()
+                route = logistics_service.query_route_pricing(
+                    origin=origin,
+                    destination=destination,
+                    shipping_method=shipping_method
+                )
+                result['logistics_route'] = dict(route) if route else None
+            except Exception:
+                pass
+
+    return jsonify(result)
 

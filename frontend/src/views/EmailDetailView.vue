@@ -77,6 +77,26 @@
             </div>
           </div>
 
+          <!-- 分类评分详情 (新增) -->
+          <RubricScoresCard
+            v-if="email?.classification_rubric_scores"
+            title="分类评分详情"
+            :scores="email.classification_rubric_scores"
+          />
+
+          <!-- 自动发送评分详情 (新增) -->
+          <RubricScoresCard
+            v-if="email?.auto_send_rubric_scores"
+            title="自动发送评分"
+            :scores="email.auto_send_rubric_scores"
+          />
+
+          <!-- 匹配的数据库内容 (新增) -->
+          <MatchedDataCard
+            v-if="matchedData && (matchedData.order || matchedData.logistics_route)"
+            :data="matchedData"
+          />
+
           <!-- Reply draft card -->
           <div class="card flex-1 flex flex-col">
             <h4 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">{{ t('emailDetail.reply') }}</h4>
@@ -135,9 +155,13 @@ import { useRoute } from 'vue-router'
 import { CheckCircle, XCircle, Mail } from 'lucide-vue-next'
 import { useEmailStore } from '../stores/email'
 import StatusBadge from '../components/StatusBadge.vue'
+import RubricScoresCard from '../components/RubricScoresCard.vue'
+import MatchedDataCard from '../components/MatchedDataCard.vue'
 import { CATEGORY_COLORS } from '../types/index'
+import type { MatchedData } from '../types/index'
 import { useI18n } from 'vue-i18n'
 import { useTranslatedLabels } from '../composables/useTranslatedLabels'
+import { emailApi } from '../api/index'
 
 const { t } = useI18n()
 const { categoryLabels, statusLabels } = useTranslatedLabels()
@@ -146,6 +170,7 @@ const route = useRoute()
 const emailStore = useEmailStore()
 const approving = ref(false)
 const rejecting = ref(false)
+const matchedData = ref<MatchedData | null>(null)
 
 const email = computed(() => emailStore.currentEmail)
 const editableReply = ref('')
@@ -195,5 +220,15 @@ onMounted(async () => {
   const id = parseInt(route.params.id as string)
   await emailStore.loadEmail(id)
   editableReply.value = emailStore.currentEmail?.reply_text || ''
+
+  // 加载匹配数据
+  if (email.value) {
+    try {
+      const response = await emailApi.getMatchedData(id)
+      matchedData.value = response.data
+    } catch (error) {
+      console.error('Failed to load matched data:', error)
+    }
+  }
 })
 </script>

@@ -14,6 +14,30 @@ export interface EmailRecord {
 
   sent_at: string | null
   created_at: string
+
+  // Rubric评分
+  classification_rubric_scores?: {
+    scores: Record<string, {
+      score: number
+      reasoning: string
+    }>
+    weighted_score: number
+    confidence: number
+    rubric_version?: string
+  }
+
+  auto_send_rubric_scores?: {
+    scores: Record<string, {
+      score: number
+      reasoning: string
+    }>
+    weighted_score: number
+    auto_send_recommended: boolean
+    thresholds_applied?: {
+      auto_send_minimum: number
+      require_all_above: number
+    }
+  }
 }
 
 export interface EmailListResponse {
@@ -74,6 +98,46 @@ export const STATUS_LABELS: Record<string, string> = {
   rejected: '已拒绝',
   send_failed: '发送失败（可重试）',
   ignored_no_reply: '已忽略（无需回复）',
+}
+
+export const RUBRIC_DIMENSION_LABELS: Record<string, string> = {
+  // 分类评分维度
+  keyword_match: '关键词匹配',
+  intent_clarity: '意图清晰度',
+  context_completeness: '上下文完整性',
+  exclusion_confidence: '排他性置信度',
+
+  // 自动发送评分维度
+  information_completeness: '信息完整性',
+  risk_level: '风险等级',
+  template_applicability: '模板适用性',
+  policy_alignment: '政策一致性',
+}
+
+// 匹配数据接口
+export interface MatchedData {
+  order?: {
+    order_number: string
+    customer_email: string
+    product_name: string
+    quantity: number
+    total_amount: number
+    currency: string
+    order_status: string
+    shipping_status: string
+    tracking_number?: string
+    destination: string
+  }
+  logistics_route?: {
+    origin: string
+    destination: string
+    shipping_method: string
+    container_type?: string
+    weight_range?: string
+    price: number
+    currency: string
+    transit_days: number
+  }
 }
 
 

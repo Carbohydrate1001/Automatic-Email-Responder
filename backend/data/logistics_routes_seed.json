@@ -1,0 +1,286 @@
+{
+  "description": "Logistics routes pricing data for sea and air freight",
+  "version": "1.0",
+  "routes": [
+    {
+      "origin": "深圳",
+      "destination": "纽约",
+      "shipping_method": "sea_freight",
+      "container_type": "20ft",
+      "weight_range": null,
+      "price": 2800.0,
+      "currency": "USD",
+      "transit_days": 28
+    },
+    {
+      "origin": "深圳",
+      "destination": "洛杉矶",
+      "shipping_method": "sea_freight",
+      "container_type": "20ft",
+      "weight_range": null,
+      "price": 2200.0,
+      "currency": "USD",
+      "transit_days": 18
+    },
+    {
+      "origin": "上海",
+      "destination": "纽约",
+      "shipping_method": "sea_freight",
+      "container_type": "20ft",
+      "weight_range": null,
+      "price": 2900.0,
+      "currency": "USD",
+      "transit_days": 30
+    },
+    {
+      "origin": "上海",
+      "destination": "洛杉矶",
+      "shipping_method": "sea_freight",
+      "container_type": "20ft",
+      "weight_range": null,
+      "price": 2300.0,
+      "currency": "USD",
+      "transit_days": 20
+    },
+    {
+      "origin": "上海",
+      "destination": "伦敦",
+      "shipping_method": "sea_freight",
+      "container_type": "20ft",
+      "weight_range": null,
+      "price": 3200.0,
+      "currency": "USD",
+      "transit_days": 35
+    },
+    {
+      "origin": "深圳",
+      "destination": "伦敦",
+      "shipping_method": "sea_freight",
+      "container_type": "20ft",
+      "weight_range": null,
+      "price": 3100.0,
+      "currency": "USD",
+      "transit_days": 33
+    },
+    {
+      "origin": "香港",
+      "destination": "纽约",
+      "shipping_method": "sea_freight",
+      "container_type": "20ft",
+      "weight_range": null,
+      "price": 2850.0,
+      "currency": "USD",
+      "transit_days": 29
+    },
+    {
+      "origin": "深圳",
+      "destination": "纽约",
+      "shipping_method": "sea_freight",
+      "container_type": "40ft",
+      "weight_range": null,
+      "price": 4200.0,
+      "currency": "USD",
+      "transit_days": 28
+    },
+    {
+      "origin": "深圳",
+      "destination": "洛杉矶",
+      "shipping_method": "sea_freight",
+      "container_type": "40ft",
+      "weight_range": null,
+      "price": 3500.0,
+      "currency": "USD",
+      "transit_days": 18
+    },
+    {
+      "origin": "上海",
+      "destination": "纽约",
+      "shipping_method": "sea_freight",
+      "container_type": "40ft",
+      "weight_range": null,
+      "price": 4300.0,
+      "currency": "USD",
+      "transit_days": 30
+    },
+    {
+      "origin": "上海",
+      "destination": "洛杉矶",
+      "shipping_method": "sea_freight",
+      "container_type": "40ft",
+      "weight_range": null,
+      "price": 3600.0,
+      "currency": "USD",
+      "transit_days": 20
+    },
+    {
+      "origin": "上海",
+      "destination": "伦敦",
+      "shipping_method": "sea_freight",
+      "container_type": "40ft",
+      "weight_range": null,
+      "price": 4800.0,
+      "currency": "USD",
+      "transit_days": 35
+    },
+    {
+      "origin": "深圳",
+      "destination": "纽约",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "0-100",
+      "price": 8.5,
+      "currency": "USD",
+      "transit_days": 5
+    },
+    {
+      "origin": "深圳",
+      "destination": "纽约",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "100-500",
+      "price": 7.2,
+      "currency": "USD",
+      "transit_days": 5
+    },
+    {
+      "origin": "深圳",
+      "destination": "纽约",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "500-1000",
+      "price": 6.5,
+      "currency": "USD",
+      "transit_days": 5
+    },
+    {
+      "origin": "上海",
+      "destination": "纽约",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "0-100",
+      "price": 8.8,
+      "currency": "USD",
+      "transit_days": 5
+    },
+    {
+      "origin": "上海",
+      "destination": "纽约",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "100-500",
+      "price": 7.5,
+      "currency": "USD",
+      "transit_days": 5
+    },
+    {
+      "origin": "上海",
+      "destination": "纽约",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "500-1000",
+      "price": 6.8,
+      "currency": "USD",
+      "transit_days": 5
+    },
+    {
+      "origin": "上海",
+      "destination": "伦敦",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "0-100",
+      "price": 9.2,
+      "currency": "USD",
+      "transit_days": 6
+    },
+    {
+      "origin": "上海",
+      "destination": "伦敦",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "100-500",
+      "price": 7.8,
+      "currency": "USD",
+      "transit_days": 6
+    },
+    {
+      "origin": "上海",
+      "destination": "伦敦",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "500-1000",
+      "price": 7.0,
+      "currency": "USD",
+      "transit_days": 6
+    },
+    {
+      "origin": "深圳",
+      "destination": "伦敦",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "0-100",
+      "price": 9.0,
+      "currency": "USD",
+      "transit_days": 6
+    },
+    {
+      "origin": "深圳",
+      "destination": "伦敦",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "100-500",
+      "price": 7.6,
+      "currency": "USD",
+      "transit_days": 6
+    },
+    {
+      "origin": "上海",
+      "destination": "洛杉矶",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "0-100",
+      "price": 7.5,
+      "currency": "USD",
+      "transit_days": 4
+    },
+    {
+      "origin": "上海",
+      "destination": "洛杉矶",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "100-500",
+      "price": 6.5,
+      "currency": "USD",
+      "transit_days": 4
+    },
+    {
+      "origin": "上海",
+      "destination": "洛杉矶",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "500-1000",
+      "price": 5.8,
+      "currency": "USD",
+      "transit_days": 4
+    },
+    {
+      "origin": "深圳",
+      "destination": "洛杉矶",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "0-100",
+      "price": 7.3,
+      "currency": "USD",
+      "transit_days": 4
+    },
+    {
+      "origin": "深圳",
+      "destination": "洛杉矶",
+      "shipping_method": "air_freight",
+      "container_type": null,
+      "weight_range": "100-500",
+      "price": 6.3,
+      "currency": "USD",
+      "transit_days": 4
+    }
+  ]
+}
