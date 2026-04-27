@@ -8,7 +8,10 @@ Tests three scenarios:
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+
+# Add backend directory to path (two levels up from tests/integration/)
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, backend_path)
 
 # Mock the dependencies to avoid import errors
 class MockConfig:

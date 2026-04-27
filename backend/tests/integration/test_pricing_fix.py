@@ -5,7 +5,10 @@ Tests route-specific pricing queries against the logistics database.
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+
+# Add backend directory to path (two levels up from tests/integration/)
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, backend_path)
 
 # Mock config to avoid import errors
 class MockConfig:
@@ -13,7 +16,7 @@ class MockConfig:
     OPENAI_BASE_URL = "test"
     OPENAI_MODEL = "test"
     DEMO_MODE = True
-    DATABASE_PATH = os.path.join(os.path.dirname(__file__), "email_system.db")
+    DATABASE_PATH = os.path.join(backend_path, "email_system.db")
 
 sys.modules['config'] = MockConfig()
 
