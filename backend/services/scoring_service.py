@@ -23,7 +23,7 @@ class ScoringService:
             rubrics_file: Path to rubrics.yaml file. Defaults to backend/config/rubrics.yaml
             calibration_model_path: Path to calibration model. Defaults to backend/models/calibration_model.pkl
         """
-        self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL)
+        self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL, timeout=30.0, max_retries=2)
         self.model = Config.OPENAI_MODEL
 
         backend_dir = Path(__file__).parent.parent

@@ -37,7 +37,7 @@ class ReplyService:
     """Generates reply drafts and orchestrates the full email processing pipeline."""
 
     def __init__(self, language: str = 'zh'):
-        self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL)
+        self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL, timeout=30.0, max_retries=2)
         self.model = Config.OPENAI_MODEL
         self.language = language  # Store language for prompt and template selection
         self.config_loader = get_config_loader()

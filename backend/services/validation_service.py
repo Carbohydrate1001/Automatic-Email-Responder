@@ -34,7 +34,7 @@ class ValidationService:
             rubrics_file: Path to rubrics.yaml
             policies_file: Path to policies.yaml
         """
-        self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL)
+        self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL, timeout=30.0, max_retries=2)
         self.model = Config.OPENAI_MODEL
 
         backend_dir = Path(__file__).parent.parent

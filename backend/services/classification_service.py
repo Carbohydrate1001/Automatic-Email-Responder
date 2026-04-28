@@ -160,7 +160,12 @@ class ClassificationService:
     """Classifies customer service emails using OpenAI GPT."""
 
     def __init__(self, language: str = 'zh'):
-        self.client = OpenAI(api_key=Config.OPENAI_API_KEY, base_url=Config.OPENAI_BASE_URL)
+        self.client = OpenAI(
+            api_key=Config.OPENAI_API_KEY,
+            base_url=Config.OPENAI_BASE_URL,
+            timeout=30.0,  # 30 秒超时
+            max_retries=2
+        )
         self.model = Config.OPENAI_MODEL
         self.language = language  # Store language for prompt selection
         self.config_loader = get_config_loader()

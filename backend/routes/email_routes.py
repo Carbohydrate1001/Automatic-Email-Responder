@@ -155,7 +155,7 @@ def fetch_emails():
     print(f"[FETCH] Token 前缀: {token[:20] if token else 'None'}...", flush=True)
 
     graph = GraphService(token)
-    top = int(request.json.get("top", 10)) if request.is_json else 10
+    top = int(request.json.get("top", 50)) if request.is_json else 50  # 增加默认值到 50
     fetch_started_at = time.perf_counter()
 
     print(f"[FETCH] 请求参数: top={top}", flush=True)
@@ -208,8 +208,13 @@ def fetch_emails():
                 ).fetchone()
 
             if existing:
+                print(f"[FETCH] 跳过重复邮件: message_id={message_id[:30]}..., "
+                      f"subject={msg.get('subject', 'N/A')[:50]}", flush=True)
                 skipped.append(message_id)
                 continue
+
+            print(f"[FETCH] 处理新邮件: message_id={message_id[:30]}..., "
+                  f"subject={msg.get('subject', 'N/A')[:50]}", flush=True)
 
             subject = msg.get("subject", "(No Subject)")
             sender = msg.get("from", {}).get("emailAddress", {}).get("address", "unknown")
