@@ -213,11 +213,18 @@ def fetch_emails():
                 skipped.append(message_id)
                 continue
 
+            subject = msg.get("subject", "(No Subject)")
+            sender = msg.get("from", {}).get("emailAddress", {}).get("address", "unknown")
+
+            # 防止死循环：跳过自己发给自己的邮件
+            if sender.lower() == operator.lower():
+                print(f"[FETCH] 跳过自发邮件: sender={sender}, operator={operator}", flush=True)
+                skipped.append(message_id)
+                continue
+
             print(f"[FETCH] 处理新邮件: message_id={message_id[:30]}..., "
                   f"subject={msg.get('subject', 'N/A')[:50]}", flush=True)
 
-            subject = msg.get("subject", "(No Subject)")
-            sender = msg.get("from", {}).get("emailAddress", {}).get("address", "unknown")
             received_at = msg.get("receivedDateTime", "")
             body = msg.get("body", {}).get("content", msg.get("bodyPreview", ""))
 
