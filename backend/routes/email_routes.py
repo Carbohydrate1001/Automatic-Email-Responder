@@ -32,26 +32,159 @@ def _require_auth():
 
 
 # ---------------------------------------------------------------------------
+# GET /api/debug/email-fetch  – 诊断邮件拉取问题
+# ---------------------------------------------------------------------------
+@email_bp.route("/debug/email-fetch", methods=["GET"])
+def debug_email_fetch():
+    """诊断邮件拉取问题的调试端点"""
+    token, operator = _require_auth()
+    if not token:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    result = {
+        "user": operator,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "folders": [],
+        "recent_emails": [],
+        "database_emails": [],
+        "diagnosis": []
+    }
+
+    graph = GraphService(token)
+
+    # 1. 列出所有文件夹
+    try:
+        folders = graph.list_mail_folders()
+        result["folders"] = [
+            {
+                "name": f.get("displayName"),
+                "total": f.get("totalItemCount"),
+                "unread": f.get("unreadItemCount")
+            }
+            for f in folders
+        ]
+        result["diagnosis"].append(f"✓ 找到 {len(folders)} 个邮件文件夹")
+    except Exception as e:
+        result["diagnosis"].append(f"❌ 列出文件夹失败: {str(e)}")
+
+    # 2. 拉取最近的邮件
+    try:
+        emails = graph.get_emails(top=20, search_all_folders=True)
+        result["recent_emails"] = [
+            {
+                "subject": e.get("subject", "(无主题)"),
+                "from": e.get("from", {}).get("emailAddress", {}).get("address", "未知"),
+                "received": e.get("receivedDateTime"),
+                "isRead": e.get("isRead"),
+                "id": e.get("id", "")[:30] + "..."
+            }
+            for e in emails[:10]
+        ]
+        result["diagnosis"].append(f"✓ Graph API 返回 {len(emails)} 封邮件")
+    except Exception as e:
+        result["diagnosis"].append(f"❌ 拉取邮件失败: {str(e)}")
+
+    # 3. 检查数据库中的邮件
+    try:
+        with get_db_connection() as conn:
+            db_emails = conn.execute(
+                """SELECT subject, sender, status, created_at, message_id
+                   FROM emails
+                   WHERE user_email = ?
+                   ORDER BY created_at DESC
+                   LIMIT 10""",
+                (operator,)
+            ).fetchall()
+
+            result["database_emails"] = [
+                {
+                    "subject": e["subject"],
+                    "sender": e["sender"],
+                    "status": e["status"],
+                    "created_at": e["created_at"],
+                    "message_id": e["message_id"][:30] + "..."
+                }
+                for e in db_emails
+            ]
+
+            total_count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM emails WHERE user_email = ?",
+                (operator,)
+            ).fetchone()["cnt"]
+
+            result["diagnosis"].append(f"✓ 数据库中有 {total_count} 封邮件")
+
+            # 检查重复
+            if emails:
+                message_ids = [e.get("id") for e in emails]
+                placeholders = ",".join("?" * len(message_ids))
+                existing_count = conn.execute(
+                    f"SELECT COUNT(*) as cnt FROM emails WHERE message_id IN ({placeholders})",
+                    message_ids
+                ).fetchone()["cnt"]
+
+                result["diagnosis"].append(
+                    f"⚠️  Graph 返回的 {len(emails)} 封邮件中，{existing_count} 封已在数据库中"
+                )
+
+                if existing_count == len(emails):
+                    result["diagnosis"].append(
+                        "❌ 所有邮件都已处理过！这就是为什么没有新邮件被处理"
+                    )
+                    result["diagnosis"].append(
+                        "建议：增加 top 参数（当前默认10），或者清理数据库中的旧邮件"
+                    )
+
+    except Exception as e:
+        result["diagnosis"].append(f"❌ 数据库查询失败: {str(e)}")
+
+    return jsonify(result)
+
+
+# ---------------------------------------------------------------------------
 # POST /api/fetch  – Pull new emails from Outlook and process them
 # ---------------------------------------------------------------------------
 @email_bp.route("/fetch", methods=["POST"])
 def fetch_emails():
     token, operator = _require_auth()
     if not token:
+        print(f"[FETCH] 认证失败: token={token}, operator={operator}", flush=True)
         return jsonify({"error": "Not authenticated"}), 401
+
+    print(f"[FETCH] 开始拉取邮件，操作员: {operator}", flush=True)
+    print(f"[FETCH] Token 前缀: {token[:20] if token else 'None'}...", flush=True)
 
     graph = GraphService(token)
     top = int(request.json.get("top", 10)) if request.is_json else 10
     fetch_started_at = time.perf_counter()
 
-    print(f"[FETCH] 开始拉取邮件，top={top}", flush=True)
+    print(f"[FETCH] 请求参数: top={top}", flush=True)
+
+    # 先列出所有文件夹，帮助诊断
+    print(f"[FETCH] 列出所有邮件文件夹...", flush=True)
     try:
-        emails = graph.get_emails(top=top)
+        folders = graph.list_mail_folders()
+        print(f"[FETCH] 找到 {len(folders)} 个文件夹", flush=True)
+    except Exception as e:
+        print(f"[FETCH] 列出文件夹失败: {e}", flush=True)
+
+    # 拉取邮件
+    try:
+        emails = graph.get_emails(top=top, search_all_folders=True)
+        print(f"[FETCH] Graph API 成功返回 {len(emails)} 封邮件", flush=True)
     except Exception as e:
         print(f"[FETCH] Graph API 调用失败: {e}", flush=True)
+        import traceback
+        print(f"[FETCH] 详细错误:\n{traceback.format_exc()}", flush=True)
         return jsonify({"error": f"Graph API 调用失败: {str(e)}"}), 500
 
     print(f"[FETCH] Graph 返回 {len(emails)} 封邮件", flush=True)
+
+    # 打印前3封邮件的详细信息
+    for i, email in enumerate(emails[:3], 1):
+        print(f"[FETCH] 邮件 {i}: subject={email.get('subject', 'N/A')[:50]}, "
+              f"from={email.get('from', {}).get('emailAddress', {}).get('address', 'N/A')}, "
+              f"id={email.get('id', 'N/A')[:30]}...", flush=True)
 
     processed = []
     skipped = []

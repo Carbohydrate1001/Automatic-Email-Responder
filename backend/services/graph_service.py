@@ -54,26 +54,74 @@ class GraphService:
         )
         resp.raise_for_status()
 
-    def get_emails(self, top: int = 20) -> list[dict]:
-        """Fetch emails from inbox, most recent first."""
-        # 先尝试 inbox，再 fallback 到 /me/messages
-        for path in ("/me/mailFolders/inbox/messages", "/me/messages"):
+    def get_emails(self, top: int = 20, search_all_folders: bool = False) -> list[dict]:
+        """Fetch emails from inbox, most recent first.
+
+        Args:
+            top: Maximum number of emails to fetch
+            search_all_folders: If True, search all mail folders, not just inbox
+        """
+        print(f"[GRAPH] 开始拉取邮件，top={top}, search_all_folders={search_all_folders}", flush=True)
+
+        if search_all_folders:
+            # 搜索所有邮件，不限制文件夹
+            paths = ["/me/messages"]
+        else:
+            # 先尝试 inbox，再 fallback 到 /me/messages
+            paths = ["/me/mailFolders/inbox/messages", "/me/messages"]
+
+        for path in paths:
             try:
-                data = self._get(
-                    path,
-                    params={
-                        "$top": top,
-                        "$orderby": "receivedDateTime desc",
-                        "$select": "id,subject,from,receivedDateTime,bodyPreview,body,isRead",
-                    },
-                )
+                params = {
+                    "$top": top,
+                    "$orderby": "receivedDateTime desc",
+                    "$select": "id,subject,from,receivedDateTime,bodyPreview,body,isRead",
+                }
+                print(f"[GRAPH] 尝试路径: {path}", flush=True)
+                print(f"[GRAPH] 请求参数: {params}", flush=True)
+
+                data = self._get(path, params=params)
                 values = data.get("value", [])
+
                 print(f"[GRAPH] {path} 返回 {len(values)} 封邮件", flush=True)
+
+                # 打印前5封邮件的详细信息
+                for i, email in enumerate(values[:5], 1):
+                    subject = email.get('subject', 'N/A')[:50]
+                    sender = email.get('from', {}).get('emailAddress', {}).get('address', 'N/A')
+                    is_read = email.get('isRead', 'N/A')
+                    received = email.get('receivedDateTime', 'N/A')
+                    msg_id = email.get('id', 'N/A')[:30]
+                    print(f"[GRAPH]   邮件 {i}: subject={subject}, from={sender}, "
+                          f"isRead={is_read}, received={received}, id={msg_id}...", flush=True)
+
                 if values:
                     return values
+                else:
+                    print(f"[GRAPH] {path} 返回空列表，尝试下一个路径", flush=True)
+
             except Exception as e:
                 print(f"[GRAPH] {path} 失败: {e}", flush=True)
+                import traceback
+                print(f"[GRAPH] 详细错误:\n{traceback.format_exc()}", flush=True)
+
+        print("[GRAPH] 所有路径都失败或返回空，返回空列表", flush=True)
         return []
+
+    def list_mail_folders(self) -> list[dict]:
+        """列出所有邮件文件夹，用于调试"""
+        try:
+            data = self._get("/me/mailFolders", params={"$select": "id,displayName,totalItemCount,unreadItemCount"})
+            folders = data.get("value", [])
+            print(f"[GRAPH] 找到 {len(folders)} 个邮件文件夹:", flush=True)
+            for folder in folders:
+                print(f"[GRAPH]   - {folder.get('displayName')}: "
+                      f"总数={folder.get('totalItemCount')}, "
+                      f"未读={folder.get('unreadItemCount')}", flush=True)
+            return folders
+        except Exception as e:
+            print(f"[GRAPH] 列出文件夹失败: {e}", flush=True)
+            return []
 
     def get_email_detail(self, message_id: str) -> dict:
         """Fetch a single email by Graph message id."""
